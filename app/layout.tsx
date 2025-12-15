@@ -10,10 +10,10 @@ export async function generateMetadata(): Promise<Metadata> {
     title: minikitConfig.miniapp.name,
     description: minikitConfig.miniapp.description,
     other: {
+      'base:app_id': '693ffa89d77c069a945bdf06',
       "fc:frame": JSON.stringify({
         version: minikitConfig.miniapp.version,
         imageUrl: minikitConfig.miniapp.heroImageUrl,
-        'base:app_id': '693ffa89d77c069a945bdf06',
         button: {
           title: `Join the ${minikitConfig.miniapp.name} Waitlist`,
           action: {
