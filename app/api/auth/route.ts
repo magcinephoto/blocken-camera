@@ -2,6 +2,7 @@ import { Errors, createClient } from "@farcaster/quick-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 const client = createClient();
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 // Helper function to determine the correct domain for JWT verification
 function getUrlHost(request: NextRequest): string {
@@ -43,6 +44,20 @@ export async function GET(request: NextRequest) {
 
   // Here we ensure that we have a valid token.
   if (!authorization || !authorization.startsWith("Bearer ")) {
+    // 開発環境では JWT がなくても動作確認できるようにダミーユーザーを返す
+    if (IS_DEV) {
+      console.log("[DEV] Missing token, returning dummy user for local testing");
+      const now = Math.floor(Date.now() / 1000);
+      return NextResponse.json({
+        success: true,
+        user: {
+          fid: 123456,
+          issuedAt: now,
+          expiresAt: now + 60 * 60,
+        },
+      });
+    }
+
     return NextResponse.json({ message: "Missing token" }, { status: 401 });
   }
 

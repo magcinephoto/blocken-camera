@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useQuickAuth,useMiniKit } from "@coinbase/onchainkit/minikit";
+import { useMiniKit, useQuickAuth } from "@coinbase/onchainkit/minikit";
 import { useRouter } from "next/navigation";
 import { minikitConfig } from "../minikit.config";
 import styles from "./page.module.css";
@@ -18,9 +18,10 @@ interface AuthResponse {
 
 export default function Home() {
   const { isFrameReady, setFrameReady, context } = useMiniKit();
-  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [isJoining, setIsJoining] = useState(false);
   const router = useRouter();
+  const isProd = process.env.NODE_ENV === "production";
 
   // Initialize the  miniapp
   useEffect(() => {
@@ -29,58 +30,49 @@ export default function Home() {
     }
   }, [setFrameReady, isFrameReady]);
  
-  
+  // 本番では QuickAuth で JWT 付きリクエストを使う・開発では直接 /api/auth を叩く
+  const { data: authData, isLoading: isAuthLoading, error: authError } =
+    useQuickAuth<AuthResponse>("/api/auth", { method: "GET" });
 
-  // If you need to verify the user's identity, you can use the useQuickAuth hook.
-  // This hook will verify the user's signature and return the user's FID. You can update
-  // this to meet your needs. See the /app/api/auth/route.ts file for more details.
-  // Note: If you don't need to verify the user's identity, you can get their FID and other user data
-  // via `context.user.fid`.
-  // const { data, isLoading, error } = useQuickAuth<{
-  //   userFid: string;
-  // }>("/api/auth");
-
-  const { data: authData, isLoading: isAuthLoading, error: authError } = useQuickAuth<AuthResponse>(
-    "/api/auth",
-    { method: "GET" }
-  );
-
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // 手動で /api/auth を叩いて認証を確認する（開発や SDK がブロックされる場合のフォールバック）
+  const handleJoinClick = async () => {
     setError("");
+    setIsJoining(true);
 
-    // Check authentication first
-    if (isAuthLoading) {
-      setError("Please wait while we verify your identity...");
-      return;
-    }
+    try {
+      if (isProd) {
+        // 本番: QuickAuth の結果を信頼する（Farcaster MiniApp コンテキスト前提）
+        if (isAuthLoading) {
+          setError("Please wait while we verify your identity...");
+          return;
+        }
 
-    if (authError || !authData?.success) {
+        if (authError || !authData?.success) {
+          setError(authData?.message || "Please authenticate to join the waitlist");
+          return;
+        }
+
+        console.log("User authenticated (quickauth):", authData.user);
+        router.push("/success");
+      } else {
+        // 開発: 直接 /api/auth を叩く（route.ts 側に dev バイパスあり）
+        const res = await fetch("/api/auth", { method: "GET" });
+        const data: AuthResponse = await res.json();
+
+        if (!res.ok || !data.success) {
+          setError(data.message || "Please authenticate to join the waitlist");
+          return;
+        }
+
+        console.log("User authenticated (dev fetch):", data.user);
+        router.push("/success");
+      }
+    } catch (err) {
+      console.error("Auth request failed", err);
       setError("Please authenticate to join the waitlist");
-      return;
+    } finally {
+      setIsJoining(false);
     }
-
-    if (!email) {
-      setError("Please enter your email address");
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      setError("Please enter a valid email address");
-      return;
-    }
-
-    // TODO: Save email to database/API with user FID
-    console.log("Valid email submitted:", email);
-    console.log("User authenticated:", authData.user);
-    
-    // Navigate to success page
-    router.push("/success");
   };
 
   return (
@@ -98,21 +90,18 @@ export default function Home() {
             crypto marketing strategy.
           </p>
 
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <input
-              type="email"
-              placeholder="Your amazing email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={styles.emailInput}
-            />
-            
+          <div className={styles.form}>
             {error && <p className={styles.error}>{error}</p>}
-            
-            <button type="submit" className={styles.joinButton}>
-              JOIN WAITLIST
+
+            <button
+              type="button"
+              onClick={handleJoinClick}
+              className={styles.joinButton}
+              disabled={isJoining}
+            >
+              {isJoining ? "VERIFYING..." : "JOIN WAITLIST"}
             </button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
