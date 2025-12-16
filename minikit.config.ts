@@ -9,9 +9,9 @@ const ROOT_URL =
  */
 export const minikitConfig = {
   accountAssociation: {
-    header: "",
-    payload: "",
-    signature: ""
+    header: "eyJmaWQiOjI4OTE3MiwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDcwMDlhM0Y3MjA5YjRFMTIwY2U2YTQ0NzRBQTlFYTcwOUFiQjJmOTYifQ",
+    payload: "eyJkb21haW4iOiJuZXctbWluaS1hcHAtcXVpY2tzdGFydC1rYXBwYS1pbmRvbC52ZXJjZWwuYXBwIn0",
+    signature: "Z5vebu4Cp0xYovHgyngQd4wzUTFvp8qXs8p3hQ3CSxdIeByNE3dnA/u0Rxq5WufUQHvFTrsUog8QHntQVssTqRw="
   },
   miniapp: {
     version: "1",
