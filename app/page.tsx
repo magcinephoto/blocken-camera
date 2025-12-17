@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { minikitConfig } from "../minikit.config";
 import styles from "./page.module.css";
 import { MintNFT } from "./components/MintNFT";
+import { WalletConnect } from "./components/WalletConnect";
 
 interface AuthResponse {
   success: boolean;
@@ -81,7 +82,7 @@ export default function Home() {
       <button className={styles.closeButton} type="button">
         ✕
       </button>
-      
+
       <div className={styles.content}>
         <div className={styles.waitlistForm}>
           <h1 className={styles.title}>Join {minikitConfig.miniapp.name.toUpperCase()}</h1>
@@ -106,6 +107,9 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* ウォレット接続ボタン */}
+        <WalletConnect />
 
         {/* NFTミントコンポーネント */}
         <MintNFT />

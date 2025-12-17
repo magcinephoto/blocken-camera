@@ -1,27 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import {
+  useAccount,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  useReadContract,
+} from "wagmi";
 import { baseSepolia, base } from "wagmi/chains";
 import { timestampNFTABI } from "../contracts/timestampNFTABI";
 import styles from "./MintNFT.module.css";
 
 const isDev = process.env.NEXT_PUBLIC_ENVIRONMENT === "development";
+const targetChain = isDev ? baseSepolia : base;
 
 const contractAddress = (isDev
   ? process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS_SEPOLIA
   : process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS_MAINNET) as `0x${string}` | undefined;
 
 export function MintNFT() {
-  const { address, isConnected } = useAccount();
+  const { chain, isConnected } = useAccount();
   const [mintedTokenId, setMintedTokenId] = useState<bigint | null>(null);
 
-  const {
-    data: hash,
-    writeContract,
-    isPending,
-    error: writeError,
-  } = useWriteContract();
+  const { data: hash, writeContract, isPending, error: writeError } = useWriteContract();
 
   const {
     isLoading: isConfirming,
@@ -30,17 +31,33 @@ export function MintNFT() {
     hash,
   });
 
+  // 最新のトークンIDを取得
+  const { data: currentTokenId } = useReadContract({
+    address: contractAddress,
+    abi: timestampNFTABI,
+    functionName: "getCurrentTokenId",
+    chainId: targetChain.id,
+    query: {
+      enabled: Boolean(contractAddress) && isConfirmed,
+    },
+  });
+
   useEffect(() => {
-    if (isConfirmed && !mintedTokenId && hash) {
-      // 実際にはイベントからトークンIDを取得するのが理想だが、
-      // シンプルさを優先して0番を表示している
-      setMintedTokenId(BigInt(0));
+    if (isConfirmed && typeof currentTokenId === "bigint") {
+      // mint() 実装上、_tokenIdCounter はミント後に +1 されるので、実際にミントされたトークンIDは -1 する
+      setMintedTokenId(currentTokenId - BigInt(1));
     }
-  }, [hash, isConfirmed, mintedTokenId]);
+  }, [isConfirmed, currentTokenId]);
 
   const handleMint = async () => {
     if (!isConnected) {
       alert("ウォレットを接続してください");
+      return;
+    }
+
+    // wagmi からチェーン情報が取得できない、もしくはターゲットチェーンと異なる場合はミントさせない
+    if (!chain || chain.id !== targetChain.id) {
+      alert("ウォレットのネットワークをBaseの対象チェーンに切り替えてください");
       return;
     }
 
@@ -54,8 +71,8 @@ export function MintNFT() {
         address: contractAddress,
         abi: timestampNFTABI,
         functionName: "mint",
-        chainId: (isDev ? baseSepolia : base).id,
-        account: address,
+        // wagmi / viem にターゲットチェーンを明示的に渡す
+        chain: targetChain,
       });
     } catch (err) {
       // wagmi側でエラーを拾うのでここではロギングのみ
@@ -71,6 +88,13 @@ export function MintNFT() {
         <br />
         ガス代はユーザー負担です。
       </p>
+
+      {(!chain || chain.id !== targetChain.id) && (
+        <p className={styles.error}>
+          現在のネットワークはサポート外です。Base{" "}
+          {isDev ? "Sepolia Testnet" : "Mainnet"} に切り替えてください。
+        </p>
+      )}
 
       {writeError && (
         <p className={styles.error}>
@@ -93,7 +117,13 @@ export function MintNFT() {
 
       <button
         onClick={handleMint}
-        disabled={!isConnected || isPending || isConfirming}
+        disabled={
+          !isConnected ||
+          !chain ||
+          chain.id !== targetChain.id ||
+          isPending ||
+          isConfirming
+        }
         className={styles.mintButton}
         type="button"
       >
