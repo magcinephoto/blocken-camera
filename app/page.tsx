@@ -17,11 +17,11 @@ export default function Home() {
         {/* ウォレット接続ボタン */}
         <WalletConnect />
 
-        {/* NFTミントコンポーネント */}
-        <MintNFT />
-
         {/* ASCIIカメラコンポーネント */}
         <ASCIICamera />
+
+        {/* NFTミントコンポーネント */}
+        <MintNFT />
       </div>
     </div>
   );
