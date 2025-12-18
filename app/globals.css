@@ -18,8 +18,8 @@
   }
 
   body {
-    color: var(--foreground);
-    background: var(--background);
+    color: #FFFFFF;
+    background: #271da9 !important;
     font-family: var(--font-inter), sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

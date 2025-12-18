@@ -1,11 +1,59 @@
 "use client";
 import { P5Canvas, Sketch } from "@p5-wrapper/react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import styles from "./ASCIICamera.module.css";
 
 export function ASCIICamera() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [mode, setMode] = useState<'camera' | 'preview'>('camera');
+  const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
+  const currentASCIIRef = useRef<string>('');
+
+  // SVG生成関数
+  const generateSVGDataUrl = useCallback((asciiText: string): string => {
+    const lines = asciiText.split('\n').filter(line => line.length > 0);
+
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="340" height="328">`;
+    svgContent += `<rect width="100%" height="100%" fill="#FFFFFF"/>`;
+
+    lines.forEach((line, index) => {
+      const y = 20 + (index * 6);
+      const escapedLine = line
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+      svgContent += `<text x="20" y="${y}" font-family="'Courier New', monospace" font-size="10px" fill="#1100FA" letter-spacing="0">${escapedLine}</text>`;
+    });
+
+    svgContent += `</svg>`;
+
+    const base64 = btoa(unescape(encodeURIComponent(svgContent)));
+    return `data:image/svg+xml;base64,${base64}`;
+  }, []);
+
+  // シャッターボタンハンドラ
+  const handleShutter = useCallback(() => {
+    if (!currentASCIIRef.current || isLoading || error) {
+      return;
+    }
+
+    try {
+      const svgUrl = generateSVGDataUrl(currentASCIIRef.current);
+      setSvgDataUrl(svgUrl);
+      setMode('preview');
+    } catch (err) {
+      console.error('Capture error:', err);
+    }
+  }, [isLoading, error, generateSVGDataUrl]);
+
+  // 削除ボタンハンドラ
+  const handleDelete = useCallback(() => {
+    setSvgDataUrl(null);
+    setMode('camera');
+  }, []);
 
   const sketch: Sketch = useCallback((p5) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -119,6 +167,9 @@ export function ASCIICamera() {
         asciiImage += "\n";
       }
 
+      // Refに保存（シャッター用）
+      currentASCIIRef.current = asciiImage;
+
       asciiDiv.html(asciiImage);
     };
 
@@ -169,8 +220,39 @@ export function ASCIICamera() {
           <p className={styles.loadingText}>カメラを起動中...</p>
         </div>
       )}
-      <div className={styles.asciiWrapper}>
-        <P5Canvas sketch={sketch} />
+      <div className={styles.cameraContainer}>
+        {mode === 'camera' ? (
+          <>
+            <div className={styles.asciiWrapper}>
+              <P5Canvas sketch={sketch} />
+            </div>
+            <button
+              className={styles.shutterButton}
+              onClick={handleShutter}
+              disabled={isLoading || Boolean(error)}
+              aria-label="シャッター"
+            />
+          </>
+        ) : (
+          <>
+            {svgDataUrl && (
+              <img
+                src={svgDataUrl}
+                alt="Captured ASCII Art"
+                className={styles.previewImage}
+              />
+            )}
+            <button
+              className={styles.deleteButton}
+              onClick={handleDelete}
+              aria-label="削除"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
