@@ -8,9 +8,11 @@ export function ASCIICamera() {
   const [isLoading, setIsLoading] = useState(true);
 
   const sketch: Sketch = useCallback((p5) => {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     let video: any;
     let asciiDiv: any;
     let graphics: any; // グラフィックスバッファ
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // 仕様書の定義に従う
     const density = "0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f961ee21d3d9e7d7bbcdbf";
@@ -33,6 +35,7 @@ export function ASCIICamera() {
 
       // エラーハンドリング用のイベントリスナーを追加
       if (video.elt) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         video.elt.addEventListener("error", (err: any) => {
           console.error("Camera error:", err);
           setError("カメラの読み込みに失敗しました。");
