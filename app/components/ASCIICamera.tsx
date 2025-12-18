@@ -18,7 +18,7 @@ export function ASCIICamera() {
     const density = "0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f961ee21d3d9e7d7bbcdbf";
     const threshold = 0.375;
     const videoWidth = 64;
-    const videoHeight = 48;
+    const videoHeight = 64; // 1:1の縦横比
 
     p5.setup = () => {
       p5.noCanvas(); // デフォルトキャンバスを無効化
@@ -70,7 +70,7 @@ export function ASCIICamera() {
       // 仕様書通りのスタイル設定
       asciiDiv.style("font-family", "'Courier New', Courier, monospace");
       asciiDiv.style("font-size", "10px");
-      asciiDiv.style("line-height", "10px");
+      asciiDiv.style("line-height", "6px"); // 等幅フォントの文字幅に合わせて縦横比を1:1に
       asciiDiv.style("letter-spacing", "0");
       asciiDiv.style("color", "#1100FA"); // 青色
       asciiDiv.style("background-color", "#FFFFFF"); // 白背景
