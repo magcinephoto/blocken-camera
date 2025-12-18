@@ -2,10 +2,17 @@
 import { useState, useEffect } from "react";
 import { useMiniKit, useQuickAuth } from "@coinbase/onchainkit/minikit";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { minikitConfig } from "../minikit.config";
 import styles from "./page.module.css";
 import { MintNFT } from "./components/MintNFT";
 import { WalletConnect } from "./components/WalletConnect";
+
+// ASCIICameraを動的にインポート（SSR無効化）
+const ASCIICamera = dynamic(
+  () => import("./components/ASCIICamera").then((mod) => mod.ASCIICamera),
+  { ssr: false }
+);
 
 interface AuthResponse {
   success: boolean;
@@ -113,6 +120,9 @@ export default function Home() {
 
         {/* NFTミントコンポーネント */}
         <MintNFT />
+
+        {/* ASCIIカメラコンポーネント */}
+        <ASCIICamera />
       </div>
     </div>
   );
