@@ -17,8 +17,8 @@ export function ASCIICamera() {
     // 仕様書の定義に従う
     const density = "0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f961ee21d3d9e7d7bbcdbf";
     const threshold = 0.375;
-    const videoWidth = 64;
-    const videoHeight = 64; // 1:1の縦横比
+    const videoWidth = 48;
+    const videoHeight = 48; // 1:1の縦横比
 
     p5.setup = () => {
       p5.noCanvas(); // デフォルトキャンバスを無効化
