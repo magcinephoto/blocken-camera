@@ -124,9 +124,22 @@ export function ASCIICamera() {
 
     // クリーンアップ処理
     return () => {
+      // ビデオストリームを停止
       if (video && video.elt && video.elt.srcObject) {
         const tracks = video.elt.srcObject.getTracks();
         tracks.forEach((track: MediaStreamTrack) => track.stop());
+      }
+      // ビデオ要素を削除
+      if (video && video.remove) {
+        video.remove();
+      }
+      // ASCII表示用divを削除
+      if (asciiDiv && asciiDiv.remove) {
+        asciiDiv.remove();
+      }
+      // グラフィックスバッファを削除
+      if (graphics && graphics.remove) {
+        graphics.remove();
       }
     };
   }, []);
