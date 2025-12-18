@@ -1,4 +1,6 @@
 "use client";
+import { useEffect } from "react";
+import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import dynamic from "next/dynamic";
 import styles from "./page.module.css";
 import { MintNFT } from "./components/MintNFT";
@@ -11,6 +13,15 @@ const ASCIICamera = dynamic(
 );
 
 export default function Home() {
+  const { isFrameReady, setFrameReady } = useMiniKit();
+
+  // Initialize the miniapp
+  useEffect(() => {
+    if (!isFrameReady) {
+      setFrameReady();
+    }
+  }, [setFrameReady, isFrameReady]);
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
