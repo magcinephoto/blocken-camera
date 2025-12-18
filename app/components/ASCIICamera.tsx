@@ -90,7 +90,8 @@ export function ASCIICamera() {
           facingMode: { ideal: facingMode },
           width: { ideal: videoWidth },
           height: { ideal: videoHeight }
-        }
+        },
+        audio: false
       }, () => {
         video.size(videoWidth, videoHeight);
         video.hide();
