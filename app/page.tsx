@@ -25,6 +25,11 @@ export default function Home() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
+        {/* グリッチタイトル */}
+        <h1 className={styles.glitchTitle}>
+          B̶̦̝̲͚͖̲͎͈̔͒͝L̵̟̈̓̔͌͋Õ̶̢̤̻̣̪̲̯̾̏C̸̤̻͉̟̅̑͋͒̈̔͘K̷̫͕̬̼̤̫̮̯̑̓̌͒͛͋͝Ê̸̜̲͌̚ͅN̸̛͎͓̺̲̋͌͆͐͌̕ͅ ̴̡̢̗̱̦̀͂C̸̡̡̡̼͎̩̩̓́̒͝A̴̧̝̦̟͍̥̪̓ͅM̸̻͇͋̈́̄̂̃̃̕͠E̴̜̩̩̥͇̟̪͋̈́ͅR̵̡̦̱̦̟̩͛̏̅̑͊Ą̵̠͖̝̹̺̰̇̀͒̀͝
+        </h1>
+
         {/* ウォレット接続ボタン */}
         <WalletConnect />
 
