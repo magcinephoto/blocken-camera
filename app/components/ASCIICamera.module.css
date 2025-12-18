@@ -143,6 +143,43 @@
   cursor: not-allowed;
 }
 
+/* カメラ切り替えボタン */
+.flipButton {
+  position: absolute;
+  bottom: 51px;
+  left: 40px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.flipButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
+
+.flipButton:active {
+  transform: scale(1.05);
+}
+
+.flipButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.flipButton svg {
+  width: 24px;
+  height: 24px;
+}
+
 /* 削除ボタン */
 .deleteButton {
   position: absolute;
@@ -207,6 +244,18 @@
   .shutterButton::before {
     width: 50px;
     height: 50px;
+  }
+
+  .flipButton {
+    bottom: 30px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .flipButton svg {
+    width: 20px;
+    height: 20px;
   }
 
   .deleteButton {

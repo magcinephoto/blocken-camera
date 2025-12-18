@@ -8,6 +8,8 @@ export function ASCIICamera() {
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'camera' | 'preview'>('camera');
   const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [sketchKey, setSketchKey] = useState(0);
   const currentASCIIRef = useRef<string>('');
 
   // SVG生成関数
@@ -55,6 +57,13 @@ export function ASCIICamera() {
     setMode('camera');
   }, []);
 
+  // カメラ切り替えハンドラ
+  const handleToggleCamera = useCallback(() => {
+    setIsLoading(true);
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+    setSketchKey(prev => prev + 1);
+  }, []);
+
   const sketch: Sketch = useCallback((p5) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     let video: any;
@@ -76,7 +85,13 @@ export function ASCIICamera() {
       graphics = p5.createGraphics(videoWidth, videoHeight);
 
       // カメラキャプチャの設定
-      video = p5.createCapture(p5.VIDEO, () => {
+      video = p5.createCapture({
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: videoWidth },
+          height: { ideal: videoHeight }
+        }
+      }, () => {
         video.size(videoWidth, videoHeight);
         video.hide();
         setIsLoading(false);
@@ -87,7 +102,9 @@ export function ASCIICamera() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         video.elt.addEventListener("error", (err: any) => {
           console.error("Camera error:", err);
-          setError("カメラの読み込みに失敗しました。");
+          // カメラ切り替え失敗の場合は元に戻す
+          setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+          setError("カメラの切り替えに失敗しました。このデバイスではこのカメラが利用できない可能性があります。");
           setIsLoading(false);
         });
 
@@ -200,7 +217,7 @@ export function ASCIICamera() {
         graphics.remove();
       }
     };
-  }, []);
+  }, [facingMode]);
 
   // エラー UI
   if (error) {
@@ -231,8 +248,21 @@ export function ASCIICamera() {
         {mode === 'camera' ? (
           <>
             <div className={styles.asciiWrapper}>
-              <P5Canvas sketch={sketch} />
+              <P5Canvas sketch={sketch} key={sketchKey} />
             </div>
+            <button
+              className={styles.flipButton}
+              onClick={handleToggleCamera}
+              disabled={isLoading || Boolean(error)}
+              aria-label="カメラ切り替え"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1100FA" strokeWidth="2">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M3 21v-5h5"/>
+              </svg>
+            </button>
             <button
               className={styles.shutterButton}
               onClick={handleShutter}
