@@ -88,9 +88,9 @@ export function ASCIICamera() {
     const videoWidth = 50;
     const videoHeight = 50; // 1:1の縦横比
     const charW = 8;  // 文字幅
-    const charH = 12; // 文字高さ
+    const charH = 8;  // 文字高さ（正方形にするためcharWと同じ）
     const canvasWidth = videoWidth * charW;   // 400px
-    const canvasHeight = videoHeight * charH;  // 600px
+    const canvasHeight = videoHeight * charH;  // 400px（正方形）
 
     p5.setup = async () => {
       // スマホ対応：画面幅に応じてキャンバスサイズを調整
@@ -200,7 +200,7 @@ export function ASCIICamera() {
         p5.textAlign(p5.LEFT, p5.BASELINE);
 
         let asciiImage = "";
-        const offsetY = 9 * scaleY; // Y座標オフセット（スケーリング適用）
+        const offsetY = 6 * scaleY; // Y座標オフセット（正方形に合わせて調整）
 
         for (let j = 0; j < videoHeight; j++) {
           for (let i = 0; i < videoWidth; i++) {
