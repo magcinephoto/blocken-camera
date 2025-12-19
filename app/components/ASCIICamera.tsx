@@ -24,7 +24,7 @@ export function ASCIICamera() {
         if (data.success && data.txHash) {
           const selection = selectPaletteFromHash(data.txHash);
           setPaletteSelection(selection);
-          console.log(`[ASCIICamera] Selected palette from tx: ${data.txHash.substring(0, 10)}...`);
+          console.log(`[ASCIICamera] Selected palette from tx: ${data.txHash.substring(0, 10)}... (Color: ${selection.colorMode})`);
         } else {
           // フォールバック
           console.warn('[ASCIICamera] Failed to fetch tx hash, using default palette');
@@ -226,7 +226,6 @@ export function ASCIICamera() {
         const scaleY = p5.height / canvasHeight;
 
         // テキスト描画設定
-        p5.fill('#FFFFFF');
         p5.noStroke();
         p5.textAlign(p5.LEFT, p5.BASELINE);
 
@@ -262,6 +261,10 @@ export function ASCIICamera() {
 
             // キャンバスに文字を描画（スケーリング適用）
             if (ch && ch !== ' ') {
+              // 文字インデックスに基づいて色を取得
+              const color = paletteSelection.getColor(charIndex);
+              p5.fill(color.r, color.g, color.b);
+
               p5.text(String(ch), i * charW * scaleX, j * charH * scaleY + offsetY);
             }
 

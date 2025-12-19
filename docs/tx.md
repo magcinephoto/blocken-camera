@@ -63,6 +63,20 @@ app/
 | 5 | `" .:-=+*#%@"` | ミニマルな10文字パレット |
 | 6 | `"Ñ@#W$9876543210?!abc;:+=-,._          "` | 数字とスペース中心 |
 
+### 虹の7色定義
+
+トランザクションハッシュに基づいてカラーモードも決定されます。レインボーモードの場合、以下の7色が使用されます：
+
+| インデックス | 色名 | RGB値 | 16進数 |
+|------------|------|-------|--------|
+| 0 | 赤 (Red) | `(255, 0, 0)` | `#FF0000` |
+| 1 | 橙 (Orange) | `(255, 127, 0)` | `#FF7F00` |
+| 2 | 黄 (Yellow) | `(255, 255, 0)` | `#FFFF00` |
+| 3 | 緑 (Green) | `(0, 255, 0)` | `#00FF00` |
+| 4 | 青 (Blue) | `(0, 0, 255)` | `#0000FF` |
+| 5 | 藍 (Indigo) | `(75, 0, 130)` | `#4B0082` |
+| 6 | 紫 (Violet) | `(148, 0, 211)` | `#9400D3` |
+
 ### 選択アルゴリズム
 
 トランザクションハッシュ（例: `0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f9...`）から以下のように選択します：
@@ -78,7 +92,17 @@ const paletteIndex = firstValue % 7;  // 11 % 7 = 4
 
 // 3. パレット4が選択される
 const selectedPalette = ASCII_PALETTES[4];
+
+// 4. 2番目の文字でカラーモードを決定（偶数=rainbow、奇数=monochrome）
+const secondChar = cleanHash.charAt(1);  // 例: '0'
+const secondValue = parseInt(secondChar, 16);  // '0' → 0
+const colorMode = secondValue % 2 === 0 ? 'rainbow' : 'monochrome';  // 0は偶数なのでrainbow
 ```
+
+### カラーモード
+
+- **rainbow**: 虹の7色を使用。文字インデックスに基づいて色が循環的に適用される
+- **monochrome**: 白色のみ（従来の表示方法）
 
 ## Density変換（ノイズ適用）
 
@@ -104,6 +128,33 @@ const modifiedBrightness = brightness * 0.9 + hashNoise * 0.1;
 - **影響度**: 10%（控えめに適用し、元の画像構造を維持）
 - **パターン**: トランザクションハッシュの文字列順序に基づいて決定論的に適用
 - **視覚的効果**: 明度の階調に微妙な揺らぎを加え、より有機的な見た目になる
+
+## 色の適用（レインボーモード）
+
+レインボーモードが選択された場合、各ASCII文字に虹の7色が循環的に適用されます。
+
+### アルゴリズム
+
+```javascript
+// 1. 文字インデックスから色インデックスを計算
+const colorIndex = charIndex % RAINBOW_COLORS.length;  // 0-6
+
+// 2. 虹の7色から色を取得
+const color = RAINBOW_COLORS[colorIndex];
+
+// 3. p5.jsで色を設定
+p5.fill(color.r, color.g, color.b);
+
+// 4. 文字を描画
+p5.text(ch, x, y);
+```
+
+### 色の視覚効果
+
+- **文字ごとに色が変わる**: パレット内の文字インデックスに基づいて色が決定
+- **循環的な色変化**: 7色を繰り返し使用するため、グラデーション的な効果
+- **予測不可能性**: トランザクションハッシュの2番目の文字でランダムに決定
+- **ブロックチェーンとの結びつき**: 各撮影セッションで異なる色モードが選択される
 
 ## Etherscan API v2統合（Base Chain対応）
 
@@ -214,18 +265,24 @@ if (!paletteSelection) {
 ### app/utils/asciiPalette.ts
 
 ```typescript
+export const RAINBOW_COLORS = [/* 虹の7色定義 */];
+export type ColorMode = 'rainbow' | 'monochrome';
+
 export interface PaletteSelection {
   palette: string;
+  colorMode: ColorMode;
   densityModifier: (brightness: number, x: number, y: number) => number;
+  getColor: (charIndex: number) => { r: number; g: number; b: number };
 }
 
 export function selectPaletteFromHash(txHash: string): PaletteSelection
 ```
 
 **責務:**
-- 7つのパレット定義を管理
-- トランザクションハッシュからパレットを選択
+- 7つのパレット定義と虹の7色定義を管理
+- トランザクションハッシュからパレットとカラーモードを選択
 - Density変換関数を生成（クロージャでハッシュ値を保持）
+- 文字インデックスから色を取得する関数を提供
 
 ### app/api/blockhash/route.ts
 
@@ -261,6 +318,13 @@ const letters = paletteSelection.palette;
 
 // Density変換適用
 brightness = paletteSelection.densityModifier(brightness, i, j);
+
+// 文字インデックスから色を取得
+const color = paletteSelection.getColor(charIndex);
+p5.fill(color.r, color.g, color.b);
+
+// 文字を描画
+p5.text(ch, x, y);
 ```
 
 ## 環境変数
@@ -329,24 +393,15 @@ vercel --prod
 
 ## 将来の拡張
 
-### 1. 虹の7色機能
+### 1. パレット手動選択UI
 
-各パレットに色情報を追加:
-```typescript
-interface ColoredPalette {
-  chars: string;
-  colors: string[];  // 各文字に対応する色（7色の虹）
-}
-```
-
-### 2. パレット手動選択UI
-
-ユーザーがパレットを選択できるドロップダウン:
+ユーザーがパレットとカラーモードを選択できるUI:
 ```typescript
 const [manualPaletteIndex, setManualPaletteIndex] = useState<number | null>(null);
+const [manualColorMode, setManualColorMode] = useState<ColorMode | null>(null);
 ```
 
-### 3. 定期更新モード
+### 2. 定期更新モード
 
 数秒ごとに新しいトランザクションハッシュを取得:
 ```typescript
@@ -357,6 +412,17 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, []);
+```
+
+### 3. カスタムカラーパレット
+
+虹の7色以外のカラースキーム（パステルカラー、ダークカラーなど）:
+```typescript
+const PASTEL_COLORS = [
+  { r: 255, g: 182, b: 193 },  // ライトピンク
+  { r: 176, g: 224, b: 230 },  // パウダーブルー
+  // ...
+];
 ```
 
 ## トラブルシューティング
@@ -396,4 +462,15 @@ useEffect(() => {
 
 ## まとめ
 
-この機能により、Blocken Cameraで撮影されるASCIIアートは、Baseチェーンの状態と紐付けられ、ブロックチェーンの一意性と予測不可能性を活かした作品となります。各撮影セッションで異なるパレットが選択されるため、同じ被写体でも毎回異なるビジュアル表現が得られます。
+この機能により、Blocken Cameraで撮影されるASCIIアートは、Baseチェーンの状態と紐付けられ、ブロックチェーンの一意性と予測不可能性を活かした作品となります。
+
+### 主な特徴
+
+1. **7つのASCIIパレット**: トランザクションハッシュの最初の文字で決定
+2. **虹の7色カラーモード**: トランザクションハッシュの2番目の文字で決定（rainbow or monochrome）
+3. **Density変換**: ハッシュベースのノイズで有機的な見た目を実現
+4. **一意性**: 各撮影セッションで異なるパレット・カラーモードが選択される
+5. **予測不可能性**: ユーザーは事前に結果を知ることができない
+6. **ブロックチェーンとの統合**: Baseチェーンの特定のブロック状態と関連付けられる
+
+同じ被写体でも、パレットと色の組み合わせにより、毎回異なるビジュアル表現が得られます。

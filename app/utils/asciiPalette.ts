@@ -4,6 +4,7 @@
  * Baseチェーンのトランザクションハッシュから以下を生成:
  * 1. 7つのASCIIパレットから1つを選択
  * 2. ハッシュベースのdensity変換関数（ノイズ適用）
+ * 3. 虹の7色を使ったカラーモード
  */
 
 // 7つのASCIIパレット定義
@@ -17,21 +18,38 @@ export const ASCII_PALETTES = [
   "Ñ@#W$9876543210?!abc;:+=-,._          "
 ] as const;
 
+// 虹の7色定義（RGB形式）
+export const RAINBOW_COLORS = [
+  { r: 255, g: 0, b: 0 },     // 赤 (Red)
+  { r: 255, g: 127, b: 0 },   // 橙 (Orange)
+  { r: 255, g: 255, b: 0 },   // 黄 (Yellow)
+  { r: 0, g: 255, b: 0 },     // 緑 (Green)
+  { r: 0, g: 0, b: 255 },     // 青 (Blue)
+  { r: 75, g: 0, b: 130 },    // 藍 (Indigo)
+  { r: 148, g: 0, b: 211 }    // 紫 (Violet)
+] as const;
+
+export type ColorMode = 'rainbow' | 'monochrome';
+
 export interface PaletteSelection {
   palette: string;
+  colorMode: ColorMode;
   densityModifier: (brightness: number, x: number, y: number) => number;
+  getColor: (charIndex: number) => { r: number; g: number; b: number };
 }
 
 /**
  * トランザクションハッシュからパレットを選択し、density変換関数を生成
  *
  * @param txHash - トランザクションハッシュ (例: "0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f9")
- * @returns パレットとdensity変換関数
+ * @returns パレット、カラーモード、density変換関数、色取得関数
  *
  * @example
  * const selection = selectPaletteFromHash("0xb0dc294088...");
  * console.log(selection.palette); // 選択されたASCII文字列
+ * console.log(selection.colorMode); // 'rainbow' or 'monochrome'
  * const modifiedBrightness = selection.densityModifier(0.5, 10, 20);
+ * const color = selection.getColor(5); // { r, g, b }
  */
 export function selectPaletteFromHash(txHash: string): PaletteSelection {
   // "0x"プレフィックスを除去
@@ -42,6 +60,11 @@ export function selectPaletteFromHash(txHash: string): PaletteSelection {
   const firstValue = parseInt(firstChar, 16); // 0-15
   const paletteIndex = firstValue % ASCII_PALETTES.length; // 0-6
   const selectedPalette = ASCII_PALETTES[paletteIndex];
+
+  // 2番目の文字でカラーモードを決定（偶数=rainbow、奇数=monochrome）
+  const secondChar = cleanHash.charAt(1) || '0';
+  const secondValue = parseInt(secondChar, 16); // 0-15
+  const colorMode: ColorMode = secondValue % 2 === 0 ? 'rainbow' : 'monochrome';
 
   // ハッシュ全体をdensity変換のシード値として使用
   // 各文字を数値配列に変換 (0-15の範囲)
@@ -78,9 +101,32 @@ export function selectPaletteFromHash(txHash: string): PaletteSelection {
     return Math.max(0, Math.min(1, modifiedBrightness));
   };
 
+  /**
+   * 文字インデックスから色を取得
+   *
+   * @param charIndex - パレット内の文字インデックス (0からpalette.length-1)
+   * @returns RGB色オブジェクト
+   *
+   * カラーモードによって動作が変わる:
+   * - rainbow: 虹の7色から循環的に選択
+   * - monochrome: 常に白色を返す
+   */
+  const getColor = (charIndex: number): { r: number; g: number; b: number } => {
+    if (colorMode === 'monochrome') {
+      // モノクロモード: 白色
+      return { r: 255, g: 255, b: 255 };
+    }
+
+    // レインボーモード: 虹の7色から循環的に選択
+    const colorIndex = charIndex % RAINBOW_COLORS.length;
+    return RAINBOW_COLORS[colorIndex];
+  };
+
   return {
     palette: selectedPalette,
-    densityModifier
+    colorMode,
+    densityModifier,
+    getColor
   };
 }
 
@@ -88,11 +134,13 @@ export function selectPaletteFromHash(txHash: string): PaletteSelection {
  * フォールバック用のデフォルトパレット選択
  * APIエラー時や開発環境でトランザクションハッシュが取得できない場合に使用
  *
- * @returns デフォルトのパレット選択（ノイズなし）
+ * @returns デフォルトのパレット選択（ノイズなし、モノクロモード）
  */
 export function getDefaultPalette(): PaletteSelection {
   return {
     palette: ASCII_PALETTES[0], // 最初のパレットをデフォルトとする
-    densityModifier: (brightness: number) => brightness // ノイズなし
+    colorMode: 'monochrome', // デフォルトはモノクロ
+    densityModifier: (brightness: number) => brightness, // ノイズなし
+    getColor: () => ({ r: 255, g: 255, b: 255 }) // 常に白色
   };
 }
