@@ -190,7 +190,7 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
                 }
               } catch (shareErr) {
                 // Web Share APIが失敗した場合はフォールバックへ
-                console.log("Web Share API failed, falling back to download");
+                console.log("Web Share API failed, falling back to download", shareErr);
               }
             }
 
