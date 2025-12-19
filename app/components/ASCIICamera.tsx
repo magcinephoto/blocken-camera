@@ -34,7 +34,7 @@ export function ASCIICamera() {
     const svgHeight = Math.ceil(lines.length * lineHeight + (padding * 2));
 
     let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">`;
-    svgContent += `<rect width="100%" height="100%" fill="#FFFFFF"/>`;
+    svgContent += `<rect width="100%" height="100%" fill="#1100FA"/>`;
 
     lines.forEach((line, index) => {
       const y = padding + (index * lineHeight);
@@ -44,7 +44,7 @@ export function ASCIICamera() {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
-      svgContent += `<text x="${padding}" y="${y}" font-family="'Courier New', monospace" font-size="${fontSize}px" fill="#1100FA" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
+      svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" fill="#FFFFFF" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
     });
 
     svgContent += `</svg>`;
@@ -77,21 +77,57 @@ export function ASCIICamera() {
   const sketch: Sketch = useCallback((p5) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     let video: any;
-    let asciiDiv: any;
-    let graphics: any; // グラフィックスバッファ
+    let font: any;
+    let fontLoaded = false;
+    let captureCanvas: any; // ビデオからピクセルを取得するための隠しキャンバス
+    let captureContext: any;
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    // 仕様書の定義に従う
-    //const density = "0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f961ee21d3d9e7d7bbcdbf";
-    const density = "Ñ@#W$9876543210?!abc;:+=-,._          ";
+    // sampleAscii.jsから採用
+    const letters = " .,;xe$";
     const videoWidth = 50;
     const videoHeight = 50; // 1:1の縦横比
+    const charW = 8;  // 文字幅
+    const charH = 8;  // 文字高さ（正方形にするためcharWと同じ）
+    const canvasWidth = videoWidth * charW;   // 400px
+    const canvasHeight = videoHeight * charH;  // 400px（正方形）
 
-    p5.setup = () => {
-      p5.noCanvas(); // デフォルトキャンバスを無効化
+    p5.setup = async () => {
+      // スマホ対応：画面幅に応じてキャンバスサイズを調整
+      const maxWidth = Math.min(p5.windowWidth - 40, 400);
+      const aspectRatio = canvasHeight / canvasWidth;
+      const actualWidth = maxWidth;
+      const actualHeight = maxWidth * aspectRatio;
 
-      // グラフィックスバッファを作成（ピクセルデータ取得用）
-      graphics = p5.createGraphics(videoWidth, videoHeight);
+      // キャンバスを作成（sampleAscii.jsのアプローチ）
+      p5.createCanvas(actualWidth, actualHeight);
+
+      // ネイティブのCanvasでビデオからピクセルを取得（createGraphicsの代わり）
+      captureCanvas = document.createElement('canvas');
+      captureCanvas.width = videoWidth;
+      captureCanvas.height = videoHeight;
+      captureContext = captureCanvas.getContext('2d', { willReadFrequently: true });
+
+      // フォントを非同期で読み込み（sampleAscii.jsと同じアプローチ）
+      try {
+        font = await p5.loadFont('/fonts/Inconsolata-Regular.ttf');
+        fontLoaded = true;
+      } catch (e) {
+        console.log('Font not loaded, using default:', e);
+      }
+
+      // フォントサイズをキャンバスサイズに応じてスケーリング
+      const scaleX = actualWidth / canvasWidth;
+      const fontSize = 16 * scaleX;
+
+      if (font) {
+        p5.textFont(font, fontSize);
+      } else {
+        p5.textSize(fontSize);
+      }
+
+      p5.fill('#FFFFFF'); // 白色
+      p5.background('#1100FA'); // 青背景
 
       // カメラキャプチャの設定
       video = p5.createCapture({
@@ -138,58 +174,91 @@ export function ASCIICamera() {
           setIsLoading(false);
         }
       }, 5000);
-
-      // ASCII 表示用の div 要素を作成
-      asciiDiv = p5.createDiv();
-      // 仕様書通りのスタイル設定
-      asciiDiv.style("font-family", "'Courier New', Courier, monospace");
-      asciiDiv.style("font-size", "8px");
-      asciiDiv.style("line-height", "4.8px"); // 等幅フォントの文字幅に合わせて縦横比を1:1に
-      asciiDiv.style("letter-spacing", "0");
-      asciiDiv.style("color", "#1100FA"); // 青色
-      asciiDiv.style("background-color", "#FFFFFF"); // 白背景
-      asciiDiv.style("padding", "20px");
-      asciiDiv.style("white-space", "pre");
-      asciiDiv.style("overflow", "hidden");
-      asciiDiv.style("border-radius", "8px");
     };
 
     p5.draw = () => {
-      // ビデオが準備できているか確認
-      if (!video || !video.elt) return;
-      if (video.elt.readyState < 2) return; // HAVE_CURRENT_DATA (2) 以上を待つ
+      try {
+        // ビデオが準備できているか確認
+        if (!video || !video.elt) return;
+        if (video.elt.readyState < 2) return; // HAVE_CURRENT_DATA (2) 以上を待つ
 
-      // ビデオをgraphicsバッファに描画
-      graphics.image(video, 0, 0, videoWidth, videoHeight);
+        // 毎フレーム背景をクリア
+        p5.background('#1100FA');
 
-      // graphicsからピクセルデータを取得
-      graphics.loadPixels();
-      if (!graphics.pixels || graphics.pixels.length === 0) return;
+        // ネイティブCanvasにビデオを描画してピクセルデータを取得
+        captureContext.drawImage(video.elt, 0, 0, videoWidth, videoHeight);
+        const imageData = captureContext.getImageData(0, 0, videoWidth, videoHeight);
+        if (!imageData || !imageData.data || imageData.data.length === 0) return;
 
-      let asciiImage = "";
+        // キャンバスサイズに応じたスケール係数を計算
+        const scaleX = p5.width / canvasWidth;
+        const scaleY = p5.height / canvasHeight;
 
-      for (let j = 0; j < videoHeight; j++) {
-        for (let i = 0; i < videoWidth; i++) {
-          const pixelIndex = (i + j * videoWidth) * 4;
-          const r = graphics.pixels[pixelIndex];
-          const g = graphics.pixels[pixelIndex + 1];
-          const b = graphics.pixels[pixelIndex + 2];
+        // テキスト描画設定
+        p5.fill('#FFFFFF');
+        p5.noStroke();
+        p5.textAlign(p5.LEFT, p5.BASELINE);
 
-          const avg = (r + g + b) / 3;
-          const brightness = avg / 255;
+        let asciiImage = "";
+        const offsetY = 6 * scaleY; // Y座標オフセット（正方形に合わせて調整）
 
-          const charIndex = p5.floor(
-            p5.map(brightness, 0, 1, 0, density.length - 1)
-          );
-          asciiImage += density.charAt(charIndex);
+        for (let j = 0; j < videoHeight; j++) {
+          for (let i = 0; i < videoWidth; i++) {
+            const pixelIndex = (i + j * videoWidth) * 4;
+
+            // 配列の範囲チェック
+            if (pixelIndex + 2 >= imageData.data.length) {
+              continue;
+            }
+
+            const r = imageData.data[pixelIndex] || 0;
+            const g = imageData.data[pixelIndex + 1] || 0;
+            const b = imageData.data[pixelIndex + 2] || 0;
+
+            const avg = (r + g + b) / 3;
+            const brightness = avg / 255;
+
+            // lettersパレットを使用
+            const charIndex = p5.floor(
+              p5.map(brightness, 0, 1, 0, letters.length - 1)
+            );
+            const ch = letters.charAt(charIndex);
+
+            // キャンバスに文字を描画（スケーリング適用）
+            if (ch && ch !== ' ') {
+              p5.text(String(ch), i * charW * scaleX, j * charH * scaleY + offsetY);
+            }
+
+            asciiImage += ch;
+          }
+          asciiImage += "\n";
         }
-        asciiImage += "\n";
+
+        // Refに保存（シャッター用）
+        currentASCIIRef.current = asciiImage;
+      } catch (e) {
+        // エラーをキャッチして続行
+        console.error('Draw error:', e);
       }
+    };
 
-      // Refに保存（シャッター用）
-      currentASCIIRef.current = asciiImage;
+    // ウィンドウリサイズ時の対応
+    p5.windowResized = () => {
+      const maxWidth = Math.min(p5.windowWidth - 40, 400);
+      const aspectRatio = canvasHeight / canvasWidth;
+      const actualWidth = maxWidth;
+      const actualHeight = maxWidth * aspectRatio;
+      p5.resizeCanvas(actualWidth, actualHeight);
 
-      asciiDiv.html(asciiImage);
+      // フォントサイズも再調整
+      const scaleX = actualWidth / canvasWidth;
+      const fontSize = 16 * scaleX;
+
+      if (font) {
+        p5.textFont(font, fontSize);
+      } else {
+        p5.textSize(fontSize);
+      }
     };
 
     // クリーンアップ処理
@@ -203,13 +272,9 @@ export function ASCIICamera() {
       if (video && video.remove) {
         video.remove();
       }
-      // ASCII表示用divを削除
-      if (asciiDiv && asciiDiv.remove) {
-        asciiDiv.remove();
-      }
-      // グラフィックスバッファを削除
-      if (graphics && graphics.remove) {
-        graphics.remove();
+      // captureCanvasを削除
+      if (captureCanvas) {
+        captureCanvas.remove();
       }
     };
   }, []);
