@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   useAccount,
   useWriteContract,
@@ -10,6 +10,7 @@ import {
 } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
 import { blockenCameraNFTABI } from "../contracts/blockenCameraNFTABI";
+import styles from "./BlockenMintNFT.module.css";
 
 interface BlockenMintNFTProps {
   svgData: string;
@@ -28,8 +29,8 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
   // コントラクトアドレス
   const contractAddress = (
     isDev
-      ? process.env.NEXT_PUBLIC_BLOCKEN_CONTRACT_ADDRESS_SEPOLIA
-      : process.env.NEXT_PUBLIC_BLOCKEN_CONTRACT_ADDRESS_MAINNET
+      ? process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS_SEPOLIA
+      : process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS_MAINNET
   ) as `0x${string}` | undefined;
 
   // ターゲットチェーン
@@ -80,7 +81,6 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
 
   const handleMint = async () => {
     if (!svgData) {
-      alert("SVGデータがありません");
       return;
     }
 
@@ -98,82 +98,62 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
     }
   };
 
-  // チェーン切り替えが必要かチェック
-  const needsChainSwitch = isConnected && chainId !== targetChain.id;
+  // エラーメッセージを統合
+  const errorMessage = useMemo(() => {
+    if (!contractAddress) {
+      return "コントラクトアドレスが設定されていません";
+    }
+    if (!isConnected) {
+      return "ウォレットを接続してください";
+    }
+    if (chainId !== targetChain.id) {
+      return `${targetChain.name}に切り替えてください`;
+    }
+    if (error) {
+      return `エラー: ${error.message}`;
+    }
+    return null;
+  }, [contractAddress, isConnected, chainId, targetChain, error]);
 
-  if (!contractAddress) {
-    return (
-      <div style={{ padding: "20px", color: "red" }}>
-        コントラクトアドレスが設定されていません。環境変数を確認してください。
-      </div>
-    );
-  }
+  // ボタンのdisabled状態
+  const isButtonDisabled =
+    !contractAddress ||
+    !isConnected ||
+    chainId !== targetChain.id ||
+    isPending ||
+    isConfirming ||
+    !svgData;
 
-  if (!isConnected) {
-    return (
-      <div style={{ padding: "20px" }}>
-        NFTをミントするにはウォレットを接続してください。
-      </div>
-    );
-  }
-
-  if (needsChainSwitch) {
-    return (
-      <div style={{ padding: "20px", color: "orange" }}>
-        {targetChain.name}に切り替えてください。
-      </div>
-    );
-  }
+  // ボタンテキスト
+  const buttonText = isPending
+    ? "署名を確認中..."
+    : isConfirming
+      ? "トランザクション処理中..."
+      : "NFTをミント";
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h3>Blocken Camera NFT をミント</h3>
-
-      {platformFee && platformFee > BigInt(0) && (
-        <p>
-          手数料: {(Number(platformFee) / 1e18).toFixed(6)} ETH
-        </p>
-      )}
+    <div className={styles.container}>
+      {errorMessage && <div className={styles.error}>{errorMessage}</div>}
 
       <button
         onClick={handleMint}
-        disabled={isPending || isConfirming || !svgData}
-        style={{
-          padding: "10px 20px",
-          fontSize: "16px",
-          cursor:
-            isPending || isConfirming || !svgData ? "not-allowed" : "pointer",
-          backgroundColor:
-            isPending || isConfirming || !svgData ? "#ccc" : "#0052FF",
-          color: "white",
-          border: "none",
-          borderRadius: "5px",
-        }}
+        disabled={isButtonDisabled}
+        className={styles.mintButton}
+        type="button"
       >
-        {isPending
-          ? "署名を確認中..."
-          : isConfirming
-            ? "トランザクション処理中..."
-            : "NFTをミント"}
+        {buttonText}
       </button>
 
-      {error && (
-        <div style={{ marginTop: "10px", color: "red" }}>
-          エラー: {error.message}
-        </div>
-      )}
-
       {isConfirmed && mintedTokenId !== null && (
-        <div style={{ marginTop: "20px", color: "green" }}>
+        <div className={styles.success}>
           <p>✅ NFTのミントに成功しました！</p>
-          <p>Token ID: {mintedTokenId.toString()}</p>
           {hash && (
             <p>
               <a
                 href={`${targetChain.blockExplorers?.default.url}/tx/${hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: "#0052FF" }}
+                className={styles.txLink}
               >
                 Basescanで確認
               </a>

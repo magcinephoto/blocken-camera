@@ -216,6 +216,14 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
+/* ミントボタンラッパー */
+.mintButtonWrapper {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
   .container {

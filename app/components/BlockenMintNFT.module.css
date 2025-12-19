@@ -1,0 +1,80 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.mintButton {
+  background: #1100FA;
+  color: white;
+  border: none;
+  padding: 1rem 3rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 200px;
+}
+
+.mintButton:hover:not(:disabled) {
+  background: #0d00c4;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(17, 0, 250, 0.4);
+}
+
+.mintButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fee {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.5rem;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 0.8rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 8px;
+  max-width: 400px;
+}
+
+.success {
+  color: #51cf66;
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 1rem;
+  background: rgba(81, 207, 102, 0.1);
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.txLink {
+  color: #FFFFFF;
+  text-decoration: underline;
+}
+
+.txLink:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .mintButton {
+    padding: 0.8rem 2rem;
+    font-size: 1rem;
+    min-width: 160px;
+  }
+
+  .error,
+  .success {
+    font-size: 0.85rem;
+    max-width: 90%;
+  }
+}

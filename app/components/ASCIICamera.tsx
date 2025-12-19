@@ -261,7 +261,7 @@ export function ASCIICamera() {
                   alt="Captured ASCII Art"
                   className={styles.previewImage}
                 />
-                <div style={{ marginTop: '20px' }}>
+                <div className={styles.mintButtonWrapper}>
                   <BlockenMintNFT svgData={extractSvgString(svgDataUrl)} />
                 </div>
               </>

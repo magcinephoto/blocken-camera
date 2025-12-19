@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import dynamic from "next/dynamic";
 import styles from "./page.module.css";
-import { MintNFT } from "./components/MintNFT";
 import { WalletConnect } from "./components/WalletConnect";
 
 // ASCIICameraを動的にインポート（SSR無効化）
@@ -35,9 +34,6 @@ export default function Home() {
 
         {/* ASCIIカメラコンポーネント */}
         <ASCIICamera />
-
-        {/* NFTミントコンポーネント */}
-        <MintNFT />
       </div>
     </div>
   );
