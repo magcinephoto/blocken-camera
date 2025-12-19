@@ -135,14 +135,16 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
     <div className={styles.container}>
       {errorMessage && <div className={styles.error}>{errorMessage}</div>}
 
-      <button
-        onClick={handleMint}
-        disabled={isButtonDisabled}
-        className={styles.mintButton}
-        type="button"
-      >
-        {buttonText}
-      </button>
+      {!(isConfirmed && mintedTokenId !== null) && (
+        <button
+          onClick={handleMint}
+          disabled={isButtonDisabled}
+          className={styles.mintButton}
+          type="button"
+        >
+          {buttonText}
+        </button>
+      )}
 
       {isConfirmed && mintedTokenId !== null && (
         <div className={styles.success}>
