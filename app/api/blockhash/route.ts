@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Basescan APIから最新ブロックのトランザクションハッシュを取得
+ * Base RPCから最新ブロックのトランザクションハッシュを取得
  *
  * エンドポイント: GET /api/blockhash
  * レスポンス: { success: boolean, txHash: string, blockNumber?: string, network?: string }
@@ -14,42 +14,39 @@ import { NextRequest, NextResponse } from "next/server";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
-// Etherscan API v2設定（Base chainもサポート）
-const ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api";
+// Base RPC エンドポイント
+const BASE_MAINNET_RPC = "https://mainnet.base.org";
+const BASE_SEPOLIA_RPC = "https://sepolia.base.org";
 
-// Base Chain ID
-const BASE_MAINNET_CHAIN_ID = "8453";
-const BASE_SEPOLIA_CHAIN_ID = "84532";
-
-const CHAIN_ID = IS_DEV ? BASE_SEPOLIA_CHAIN_ID : BASE_MAINNET_CHAIN_ID;
-const API_KEY = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || "";
+const RPC_URL = IS_DEV ? BASE_SEPOLIA_RPC : BASE_MAINNET_RPC;
 
 export async function GET(_request: NextRequest) {
   try {
-    // 最新ブロック情報を取得（Etherscan API v2形式）
-    const params = new URLSearchParams({
-      chainid: CHAIN_ID,
-      module: "proxy",
-      action: "eth_getBlockByNumber",
-      tag: "latest",
-      boolean: "true",
-      apikey: API_KEY
-    });
-
-    const response = await fetch(`${ETHERSCAN_API_URL}?${params.toString()}`, {
-      next: { revalidate: 0 } // キャッシュしない（常に最新を取得）
+    // 最新ブロック情報を取得（JSON-RPC形式）
+    const response = await fetch(RPC_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "eth_getBlockByNumber",
+        params: ["latest", true], // trueでトランザクション詳細を取得
+        id: 1,
+      }),
+      next: { revalidate: 0 }, // キャッシュしない（常に最新を取得）
     });
 
     if (!response.ok) {
-      throw new Error(`Etherscan API v2 error: ${response.status}`);
+      throw new Error(`Base RPC error: ${response.status}`);
     }
 
     const data = await response.json();
 
-    // エラーハンドリング
+    // JSON-RPCエラーハンドリング
     if (data.error) {
-      console.error("Etherscan API v2 error:", data.error);
-      throw new Error(data.error.message || "Etherscan API v2 error");
+      console.error("Base RPC error:", data.error);
+      throw new Error(data.error.message || "Base RPC error");
     }
 
     if (!data.result || !data.result.transactions || data.result.transactions.length === 0) {
@@ -60,14 +57,13 @@ export async function GET(_request: NextRequest) {
     const txHash = data.result.transactions[0].hash;
     const blockNumber = data.result.number;
 
-    console.log(`[blockhash] Fetched tx hash: ${txHash} from block: ${blockNumber} (Chain ID: ${CHAIN_ID})`);
+    console.log(`[blockhash] Fetched tx hash: ${txHash} from block: ${blockNumber} (Network: ${IS_DEV ? "Base Sepolia" : "Base Mainnet"})`);
 
     return NextResponse.json({
       success: true,
       txHash,
       blockNumber,
-      network: IS_DEV ? "Base Sepolia" : "Base Mainnet",
-      chainId: CHAIN_ID
+      network: IS_DEV ? "Base Sepolia" : "Base Mainnet"
     });
 
   } catch (error) {
