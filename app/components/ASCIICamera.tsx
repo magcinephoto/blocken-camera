@@ -91,7 +91,6 @@ export function ASCIICamera() {
     // 仕様書の定義に従う
     //const density = "0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f961ee21d3d9e7d7bbcdbf";
     const density = "Ñ@#W$9876543210?!abc;:+=-,._          ";
-    const threshold = 0.375;
     const videoWidth = 50;
     const videoHeight = 50; // 1:1の縦横比
 
@@ -178,7 +177,6 @@ export function ASCIICamera() {
 
       let asciiImage = "";
 
-      // 64x48 ピクセルを走査
       for (let j = 0; j < videoHeight; j++) {
         for (let i = 0; i < videoWidth; i++) {
           const pixelIndex = (i + j * videoWidth) * 4;
@@ -186,25 +184,13 @@ export function ASCIICamera() {
           const g = graphics.pixels[pixelIndex + 1];
           const b = graphics.pixels[pixelIndex + 2];
 
-          // 明度計算（仕様書通り）
           const avg = (r + g + b) / 3;
           const brightness = avg / 255;
 
-          // 通常の
-          //const charIndex = p5.floor(
-          //  p5.map(brightness, threshold, 1, 0, density.length - 1)
-          //);
-          //asciiImage += density.charAt(charIndex);
-
-          // 2値化
-          if (brightness > threshold) {
-            const charIndex = p5.floor(
-              p5.map(brightness, threshold, 1, 0, density.length - 1)
-            );
-            asciiImage += density.charAt(charIndex);
-          } else {
-            asciiImage += " ";
-          }
+          const charIndex = p5.floor(
+            p5.map(brightness, 0, 1, 0, density.length - 1)
+          );
+          asciiImage += density.charAt(charIndex);
         }
         asciiImage += "\n";
       }
