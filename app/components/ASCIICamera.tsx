@@ -1,9 +1,10 @@
 "use client";
 import { P5Canvas, Sketch } from "@p5-wrapper/react";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
 import styles from "./ASCIICamera.module.css";
 import { BlockenMintNFT } from "./BlockenMintNFT";
+import { selectPaletteFromHash, getDefaultPalette, PaletteSelection } from "../utils/asciiPalette";
 
 export function ASCIICamera() {
   const [error, setError] = useState<string | null>(null);
@@ -11,6 +12,32 @@ export function ASCIICamera() {
   const [mode, setMode] = useState<'camera' | 'preview'>('camera');
   const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
   const currentASCIIRef = useRef<string>('');
+  const [paletteSelection, setPaletteSelection] = useState<PaletteSelection | null>(null);
+
+  // トランザクションハッシュを取得してパレットを選択
+  useEffect(() => {
+    const fetchAndSelectPalette = async () => {
+      try {
+        const response = await fetch('/api/blockhash');
+        const data = await response.json();
+
+        if (data.success && data.txHash) {
+          const selection = selectPaletteFromHash(data.txHash);
+          setPaletteSelection(selection);
+          console.log(`[ASCIICamera] Selected palette from tx: ${data.txHash.substring(0, 10)}...`);
+        } else {
+          // フォールバック
+          console.warn('[ASCIICamera] Failed to fetch tx hash, using default palette');
+          setPaletteSelection(getDefaultPalette());
+        }
+      } catch (err) {
+        console.error('[ASCIICamera] Error fetching tx hash:', err);
+        setPaletteSelection(getDefaultPalette());
+      }
+    };
+
+    fetchAndSelectPalette();
+  }, []); // マウント時に1回のみ実行
 
   // SVG文字列抽出関数
   const extractSvgString = useCallback((svgDataUrl: string): string => {
@@ -84,7 +111,7 @@ export function ASCIICamera() {
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // sampleAscii.jsから採用
-    const letters = " .,;xe$";
+    // const letters = " .,;xe$"; // トランザクションハッシュから動的に選択
     const videoWidth = 50;
     const videoHeight = 50; // 1:1の縦横比
     const charW = 8;  // 文字幅
@@ -177,6 +204,11 @@ export function ASCIICamera() {
 
     p5.draw = () => {
       try {
+        // パレットが選択されていない場合はスキップ
+        if (!paletteSelection) {
+          return;
+        }
+
         // ビデオが準備できているか確認
         if (!video || !video.elt) return;
         if (video.elt.readyState < 2) return; // HAVE_CURRENT_DATA (2) 以上を待つ
@@ -198,6 +230,8 @@ export function ASCIICamera() {
         p5.noStroke();
         p5.textAlign(p5.LEFT, p5.BASELINE);
 
+        // 選択されたパレットを使用
+        const letters = paletteSelection.palette;
         let asciiImage = "";
         const offsetY = 6 * scaleY; // Y座標オフセット（正方形に合わせて調整）
 
@@ -215,7 +249,10 @@ export function ASCIICamera() {
             const b = imageData.data[pixelIndex + 2] || 0;
 
             const avg = (r + g + b) / 3;
-            const brightness = avg / 255;
+            let brightness = avg / 255;
+
+            // トランザクションハッシュベースのdensity変換を適用
+            brightness = paletteSelection.densityModifier(brightness, i, j);
 
             // lettersパレットを使用
             const charIndex = p5.floor(
@@ -276,7 +313,7 @@ export function ASCIICamera() {
         captureCanvas.remove();
       }
     };
-  }, []);
+  }, [paletteSelection]);
 
   // エラー UI
   if (error) {

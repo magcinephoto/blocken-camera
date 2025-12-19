@@ -1,0 +1,388 @@
+# トランザクションハッシュベース ASCII パレット機能
+
+## 概要
+
+このドキュメントは、Baseチェーンの最新トランザクションハッシュを使用してASCIIアートのパレットを動的に選択する機能について説明します。
+
+## 機能の目的
+
+カメラで撮影されるASCIIアートの見た目をブロックチェーンの状態に紐付けることで、以下を実現します：
+
+1. **一意性**: 各撮影セッションで異なるトランザクションハッシュが使用されるため、同じ被写体でも異なるビジュアル表現が得られる
+2. **ブロックチェーンとの統合**: NFTとしてミントされるアート作品が、Baseチェーンの特定のブロック状態と関連付けられる
+3. **予測不可能性**: ユーザーがどのパレットが選択されるかを事前に知ることができず、偶然性が生まれる
+
+## アーキテクチャ
+
+### データフロー
+
+```
+ユーザーがカメラページにアクセス
+  ↓
+ASCIICameraコンポーネントがマウント
+  ↓
+useEffect で /api/blockhash にリクエスト
+  ↓
+API Routeが環境に応じてBasescan APIを呼び出し
+  ↓
+最新ブロックの最初のトランザクションハッシュを取得
+  ↓
+フロントエンドで selectPaletteFromHash() を実行
+  ↓
+パレットとdensity変換関数が決定
+  ↓
+p5.js draw()関数で各フレームに適用
+```
+
+### コンポーネント構成
+
+```
+app/
+├── api/
+│   └── blockhash/
+│       └── route.ts          # Basescan API統合
+├── components/
+│   └── ASCIICamera.tsx       # カメラUI + p5.js統合
+└── utils/
+    └── asciiPalette.ts       # パレット選択ロジック
+```
+
+## パレットの選択方法
+
+### 7つのASCIIパレット
+
+以下の7つのパレットから1つがランダムに選択されます：
+
+| インデックス | パレット | 特徴 |
+|------------|---------|------|
+| 0 | `" .'`^\",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"` | 標準的な64文字パレット（最も細かい階調） |
+| 1 | `" .,:;irsXA253hMHN$#"` | シンプルな18文字パレット |
+| 2 | `" ░▒▓█▄▀■▌▐"` | Unicodeブロック要素（グラフィカル） |
+| 3 | `" .-/\\|<>v^<>o*+xX%#&@"` | 記号中心のパレット |
+| 4 | `"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. "` | 逆順パレット（暗→明） |
+| 5 | `" .:-=+*#%@"` | ミニマルな10文字パレット |
+| 6 | `"Ñ@#W$9876543210?!abc;:+=-,._          "` | 数字とスペース中心 |
+
+### 選択アルゴリズム
+
+トランザクションハッシュ（例: `0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f9...`）から以下のように選択します：
+
+```javascript
+// 1. "0x"プレフィックスを除去
+const cleanHash = txHash.replace(/^0x/, '');
+
+// 2. 最初の1文字（16進数）でパレットインデックスを決定
+const firstChar = cleanHash.charAt(0);  // 例: 'b'
+const firstValue = parseInt(firstChar, 16);  // 'b' → 11
+const paletteIndex = firstValue % 7;  // 11 % 7 = 4
+
+// 3. パレット4が選択される
+const selectedPalette = ASCII_PALETTES[4];
+```
+
+## Density変換（ノイズ適用）
+
+トランザクションハッシュは、各ピクセルのbrightness値にノイズを加えるためにも使用されます。
+
+### アルゴリズム
+
+```javascript
+// 1. ハッシュ全体を数値配列に変換
+const hashValues = cleanHash.split('').map(char => parseInt(char, 16));
+// 例: ['b','0','d','c',...] → [11, 0, 13, 12, ...]
+
+// 2. ピクセル座標からハッシュ配列のインデックスを計算
+const index = (x + y * 50) % hashValues.length;
+const hashNoise = hashValues[index] / 15;  // 0-1に正規化
+
+// 3. 元のbrightness値にノイズを適用（影響度10%）
+const modifiedBrightness = brightness * 0.9 + hashNoise * 0.1;
+```
+
+### ノイズの効果
+
+- **影響度**: 10%（控えめに適用し、元の画像構造を維持）
+- **パターン**: トランザクションハッシュの文字列順序に基づいて決定論的に適用
+- **視覚的効果**: 明度の階調に微妙な揺らぎを加え、より有機的な見た目になる
+
+## Basescan API統合
+
+### エンドポイント
+
+| 環境 | API URL |
+|------|---------|
+| 開発環境（Base Sepolia） | `https://api-sepolia.basescan.org/api` |
+| 本番環境（Base Mainnet） | `https://api.basescan.org/api` |
+
+### APIリクエスト
+
+```
+GET https://api.basescan.org/api?module=proxy&action=eth_getBlockByNumber&tag=latest&boolean=true&apikey=YOUR_API_KEY
+```
+
+**パラメータ:**
+- `module=proxy`: Ethereumノードへのプロキシ呼び出し
+- `action=eth_getBlockByNumber`: 特定ブロックの情報を取得
+- `tag=latest`: 最新ブロックを指定
+- `boolean=true`: トランザクション詳細を含める
+- `apikey`: Basescan APIキー（オプション、レート制限緩和のため推奨）
+
+### レスポンス構造
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "number": "0x1234567",
+    "hash": "0xabcdef...",
+    "transactions": [
+      {
+        "hash": "0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f9...",
+        "from": "0x...",
+        "to": "0x...",
+        ...
+      },
+      ...
+    ]
+  }
+}
+```
+
+**使用するデータ:**
+- `result.transactions[0].hash`: 最初のトランザクションハッシュ
+
+## エラーハンドリング
+
+### 1. API呼び出し失敗
+
+**開発環境:**
+```javascript
+// 固定のダミーハッシュを返す
+const dummyHash = "0xb0dc294088cf10a0dbfad35f4bf01ac9b43db54065f9abcd1234567890";
+```
+
+**本番環境:**
+```javascript
+// デフォルトパレット（インデックス0）にフォールバック
+const defaultPalette = ASCII_PALETTES[0];
+```
+
+### 2. タイムアウト
+
+- Next.jsのデフォルトfetchタイムアウト: 10秒
+- タイムアウト時は catch ブロックで捕捉され、デフォルトパレット使用
+
+### 3. パレット選択が完了していない場合
+
+p5.js の `draw()` 関数内で早期リターン:
+```javascript
+if (!paletteSelection) {
+  return; // まだ描画しない
+}
+```
+
+## パフォーマンス
+
+### 取得頻度
+
+- **マウント時に1回のみ**: コンポーネントがマウントされた時点で1回だけトランザクションハッシュを取得
+- **セッション中は固定**: 同じパレットが撮影中ずっと使用される
+- **リロード時に更新**: ページをリロードすると新しいトランザクションハッシュが取得される
+
+### 計算コスト
+
+- **パレット選択**: O(1) - ハッシュの最初の1文字のみ使用
+- **Density変換**: O(1) - 配列のインデックスアクセスのみ
+- **メモリ使用**: 軽量（パレット文字列 + クロージャ関数）
+
+### レート制限
+
+**Basescan API:**
+- 無料枠: 1秒あたり5リクエスト
+- APIキー使用時: レート制限が緩和される
+- この実装では1ユーザーあたり1リクエストのみなので問題なし
+
+## 実装詳細
+
+### app/utils/asciiPalette.ts
+
+```typescript
+export interface PaletteSelection {
+  palette: string;
+  densityModifier: (brightness: number, x: number, y: number) => number;
+}
+
+export function selectPaletteFromHash(txHash: string): PaletteSelection
+```
+
+**責務:**
+- 7つのパレット定義を管理
+- トランザクションハッシュからパレットを選択
+- Density変換関数を生成（クロージャでハッシュ値を保持）
+
+### app/api/blockhash/route.ts
+
+```typescript
+export async function GET(request: NextRequest)
+```
+
+**責務:**
+- 環境に応じてBasescan APIのURLを切り替え
+- 最新ブロックのトランザクションハッシュを取得
+- エラー時のフォールバック処理
+
+### app/components/ASCIICamera.tsx
+
+**追加state:**
+```typescript
+const [paletteSelection, setPaletteSelection] = useState<PaletteSelection | null>(null);
+```
+
+**useEffect:**
+```typescript
+useEffect(() => {
+  // マウント時に1回だけ実行
+  fetchAndSelectPalette();
+}, []);
+```
+
+**p5.js統合:**
+```typescript
+// パレット使用
+const letters = paletteSelection.palette;
+
+// Density変換適用
+brightness = paletteSelection.densityModifier(brightness, i, j);
+```
+
+## 環境変数
+
+### .example.env
+
+```env
+# Basescan API Key (optional - 無料枠で動作可能)
+NEXT_PUBLIC_BASESCAN_API_KEY=
+
+# Environment (development or production)
+NEXT_PUBLIC_ENVIRONMENT=development
+```
+
+### 使用箇所
+
+**サーバーサイド（API Route）:**
+```typescript
+const IS_DEV = process.env.NODE_ENV !== "production";
+```
+
+**クライアントサイド:**
+```typescript
+const isDev = process.env.NEXT_PUBLIC_ENVIRONMENT === "development";
+```
+
+## テスト方法
+
+### 開発環境
+
+```bash
+# 開発サーバー起動
+npm run dev
+
+# APIエンドポイント確認
+curl http://localhost:3000/api/blockhash
+
+# 期待されるレスポンス
+{
+  "success": true,
+  "txHash": "0x...",
+  "blockNumber": "0x...",
+  "network": "Base Sepolia"
+}
+```
+
+### 動作確認
+
+1. カメラページにアクセス
+2. ブラウザのコンソールを開く
+3. `[ASCIICamera] Selected palette from tx: 0x...` のログを確認
+4. 異なる時間にリロード → 異なるパレットが選択される
+5. ネットワークタブで `/api/blockhash` のリクエストを確認
+
+### 本番環境（Vercel）
+
+```bash
+# 環境変数設定
+vercel env add NEXT_PUBLIC_BASESCAN_API_KEY production
+vercel env add NEXT_PUBLIC_ENVIRONMENT production
+
+# デプロイ
+vercel --prod
+```
+
+## 将来の拡張
+
+### 1. 虹の7色機能
+
+各パレットに色情報を追加:
+```typescript
+interface ColoredPalette {
+  chars: string;
+  colors: string[];  // 各文字に対応する色（7色の虹）
+}
+```
+
+### 2. パレット手動選択UI
+
+ユーザーがパレットを選択できるドロップダウン:
+```typescript
+const [manualPaletteIndex, setManualPaletteIndex] = useState<number | null>(null);
+```
+
+### 3. 定期更新モード
+
+数秒ごとに新しいトランザクションハッシュを取得:
+```typescript
+useEffect(() => {
+  const interval = setInterval(() => {
+    fetchAndSelectPalette();
+  }, 5000);  // 5秒ごと
+
+  return () => clearInterval(interval);
+}, []);
+```
+
+## トラブルシューティング
+
+### APIエラー: "No transactions found"
+
+**原因**: ブロックにトランザクションが含まれていない（稀）
+
+**対処**: API Routeが自動的に次のブロックを試行するか、ダミーハッシュを返す
+
+### パレットが選択されない
+
+**原因**: API呼び出しが失敗している
+
+**確認事項**:
+1. ブラウザのネットワークタブで `/api/blockhash` のレスポンスを確認
+2. コンソールログでエラーメッセージを確認
+3. デフォルトパレットが使用されているか確認
+
+### レート制限エラー
+
+**原因**: Basescan APIのレート制限に達した
+
+**対処**:
+1. 環境変数 `NEXT_PUBLIC_BASESCAN_API_KEY` を設定
+2. Basescan でAPIキーを取得（無料）
+
+## 参考リンク
+
+- [Basescan API Documentation](https://docs.basescan.org/)
+- [Base Chain Documentation](https://docs.base.org/)
+- [p5.js Reference](https://p5js.org/reference/)
+- [ASCII Art Wikipedia](https://en.wikipedia.org/wiki/ASCII_art)
+
+## まとめ
+
+この機能により、Blocken Cameraで撮影されるASCIIアートは、Baseチェーンの状態と紐付けられ、ブロックチェーンの一意性と予測不可能性を活かした作品となります。各撮影セッションで異なるパレットが選択されるため、同じ被写体でも毎回異なるビジュアル表現が得られます。
