@@ -10,7 +10,7 @@
 
 ## デモ
 
-- **アプリURL**: https://blocken-camera.vercel.app/
+- **アプリURL**: https://farcaster.xyz/miniapps/v5fNulW8lJxB/blocken-camera
 - **スライド**: https://raw.githubusercontent.com/magcinephoto/blocken-camera/refs/heads/main/SLIDE.pdf
 
 ## 推しポイント
