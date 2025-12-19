@@ -1,6 +1,7 @@
 "use client";
 import { P5Canvas, Sketch } from "@p5-wrapper/react";
 import { useState, useCallback, useRef } from "react";
+import Image from "next/image";
 import styles from "./ASCIICamera.module.css";
 import { BlockenMintNFT } from "./BlockenMintNFT";
 
@@ -78,7 +79,6 @@ export function ASCIICamera() {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     let video: any;
     let font: any;
-    let fontLoaded = false;
     let captureCanvas: any; // ビデオからピクセルを取得するための隠しキャンバス
     let captureContext: any;
     /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -111,7 +111,6 @@ export function ASCIICamera() {
       // フォントを非同期で読み込み（sampleAscii.jsと同じアプローチ）
       try {
         font = await p5.loadFont('/fonts/Inconsolata-Regular.ttf');
-        fontLoaded = true;
       } catch (e) {
         console.log('Font not loaded, using default:', e);
       }
@@ -321,10 +320,12 @@ export function ASCIICamera() {
           <>
             {svgDataUrl && (
               <>
-                <img
+                <Image
                   src={svgDataUrl}
                   alt="Captured ASCII Art"
                   className={styles.previewImage}
+                  width={400}
+                  height={400}
                 />
                 <div className={styles.mintButtonWrapper}>
                   <BlockenMintNFT svgData={extractSvgString(svgDataUrl)} />
