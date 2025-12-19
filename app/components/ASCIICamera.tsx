@@ -9,9 +9,6 @@ export function ASCIICamera() {
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'camera' | 'preview'>('camera');
   const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
-  const [sketchKey, setSketchKey] = useState(0);
-  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const currentASCIIRef = useRef<string>('');
 
   // SVG文字列抽出関数
@@ -22,7 +19,7 @@ export function ASCIICamera() {
   }, []);
 
   // SVG生成関数
-  const generateSVGDataUrl = useCallback((asciiText: string, isFrontCamera: boolean): string => {
+  const generateSVGDataUrl = useCallback((asciiText: string): string => {
     const lines = asciiText.split('\n').filter(line => line.length > 0);
 
     // 動的サイズ計算の定数
@@ -31,20 +28,15 @@ export function ASCIICamera() {
     const padding = 20;
     const charWidth = 4.8; // Courier Newの文字幅（フォントサイズと同じ比率）
 
-    // インカメラの場合は各行を左右反転
-    const processedLines = isFrontCamera
-      ? lines.map(line => line.split('').reverse().join(''))
-      : lines;
-
     // SVGサイズを動的に計算
-    const maxLineLength = Math.max(...processedLines.map(line => line.length));
+    const maxLineLength = Math.max(...lines.map(line => line.length));
     const svgWidth = Math.ceil(maxLineLength * charWidth + (padding * 2));
-    const svgHeight = Math.ceil(processedLines.length * lineHeight + (padding * 2));
+    const svgHeight = Math.ceil(lines.length * lineHeight + (padding * 2));
 
     let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">`;
     svgContent += `<rect width="100%" height="100%" fill="#FFFFFF"/>`;
 
-    processedLines.forEach((line, index) => {
+    lines.forEach((line, index) => {
       const y = padding + (index * lineHeight);
       const escapedLine = line
         .replace(/&/g, '&amp;')
@@ -68,43 +60,19 @@ export function ASCIICamera() {
     }
 
     try {
-      const isFrontCamera = facingMode === 'user';
-      const svgUrl = generateSVGDataUrl(currentASCIIRef.current, isFrontCamera);
+      const svgUrl = generateSVGDataUrl(currentASCIIRef.current);
       setSvgDataUrl(svgUrl);
       setMode('preview');
     } catch (err) {
       console.error('Capture error:', err);
     }
-  }, [isLoading, error, facingMode, generateSVGDataUrl]);
+  }, [isLoading, error, generateSVGDataUrl]);
 
   // 削除ボタンハンドラ
   const handleDelete = useCallback(() => {
     setSvgDataUrl(null);
     setMode('camera');
   }, []);
-
-  // カメラ切り替えハンドラ
-  const handleToggleCamera = useCallback(() => {
-    if (isSwitchingCamera) return; // 二重実行防止
-
-    setIsLoading(true);
-    setIsSwitchingCamera(true);
-    // 古いsketchを破棄（クリーンアップでカメラ停止）
-    setSketchKey(prev => prev + 1);
-  }, [isSwitchingCamera]);
-
-  // カメラ切り替えの段階的処理
-  useEffect(() => {
-    if (!isSwitchingCamera) return;
-
-    // カメラリソースの解放を待つ（250ms）
-    const timer = setTimeout(() => {
-      setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-      setIsSwitchingCamera(false);
-    }, 250);
-
-    return () => clearTimeout(timer);
-  }, [isSwitchingCamera]);
 
   const sketch: Sketch = useCallback((p5) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -128,7 +96,7 @@ export function ASCIICamera() {
       // カメラキャプチャの設定
       video = p5.createCapture({
         video: {
-          facingMode: { ideal: facingMode },
+          facingMode: { ideal: 'environment' },
           width: { ideal: videoWidth },
           height: { ideal: videoHeight }
         },
@@ -144,11 +112,8 @@ export function ASCIICamera() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         video.elt.addEventListener("error", (err: any) => {
           console.error("Camera error:", err);
-          // カメラ切り替え失敗の場合は元に戻す
-          setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-          setError("カメラの切り替えに失敗しました。このデバイスではこのカメラが利用できない可能性があります。");
+          setError("カメラへのアクセスに失敗しました。このデバイスではカメラが利用できない可能性があります。");
           setIsLoading(false);
-          setIsSwitchingCamera(false);
         });
 
         // getUserMediaのエラーを捕捉（ストリーム取得後）
@@ -247,7 +212,7 @@ export function ASCIICamera() {
         graphics.remove();
       }
     };
-  }, [facingMode]);
+  }, []);
 
   // エラー UI
   if (error) {
@@ -277,30 +242,9 @@ export function ASCIICamera() {
       <div className={styles.cameraContainer}>
         {mode === 'camera' ? (
           <>
-            {!isSwitchingCamera && (
-              <div className={styles.asciiWrapper}>
-                <P5Canvas sketch={sketch} key={sketchKey} />
-              </div>
-            )}
-            {isSwitchingCamera && (
-              <div className={styles.loadingContainer}>
-                <div className={styles.loadingSpinner}></div>
-                <p className={styles.loadingText}>カメラを切り替え中...</p>
-              </div>
-            )}
-            <button
-              className={styles.flipButton}
-              onClick={handleToggleCamera}
-              disabled={isLoading || Boolean(error) || isSwitchingCamera}
-              aria-label="カメラ切り替え"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1100FA" strokeWidth="2">
-                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-                <path d="M21 3v5h-5"/>
-                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-                <path d="M3 21v-5h5"/>
-              </svg>
-            </button>
+            <div className={styles.asciiWrapper}>
+              <P5Canvas sketch={sketch} />
+            </div>
             <button
               className={styles.shutterButton}
               onClick={handleShutter}
