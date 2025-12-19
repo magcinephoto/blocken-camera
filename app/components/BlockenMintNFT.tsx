@@ -180,7 +180,7 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
             console.error("Save error:", err);
           }
         }}
-        className={styles.saveButton}
+        className={styles.mintButton}
         type="button"
       >
         画像を保存

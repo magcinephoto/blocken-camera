@@ -3,6 +3,7 @@
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useAccount } from "wagmi";
+import styles from "./WalletConnect.module.css";
 
 export function WalletConnect() {
   const { context } = useMiniKit();
@@ -13,14 +14,9 @@ export function WalletConnect() {
 
   return (
     <div>
-      <ConnectWallet />
+      <ConnectWallet className={styles.connectButton} />
       {isDev && context && (
-        <div style={{
-          fontSize: '10px',
-          marginTop: '8px',
-          opacity: 0.7,
-          fontFamily: 'monospace',
-        }}>
+        <div className={styles.connectButton}>
           Platform: {context.platformType || 'unknown'} |
           Connected: {isConnected ? 'Yes' : 'No'}
           {address && ` | ${address.slice(0, 6)}...${address.slice(-4)}`}

@@ -3,7 +3,7 @@
   flex-direction: column;
   min-height: 100vh;
   background: #FFFFFF;
-  color: #271da9;
+  color: #1100FA;
   position: relative;
 }
 
@@ -21,7 +21,7 @@
   font-weight: bold;
   text-align: center;
   margin: 2rem 0;
-  color: #271da9;
+  color: #1100FA;
 }
 
 @media (max-width: 768px) {
@@ -41,7 +41,7 @@
 }
 
 .footer a {
-  color: #271da9;
+  color: #1100FA;
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 400;
