@@ -105,27 +105,32 @@ const modifiedBrightness = brightness * 0.9 + hashNoise * 0.1;
 - **パターン**: トランザクションハッシュの文字列順序に基づいて決定論的に適用
 - **視覚的効果**: 明度の階調に微妙な揺らぎを加え、より有機的な見た目になる
 
-## Basescan API統合
+## Etherscan API v2統合（Base Chain対応）
 
 ### エンドポイント
 
-| 環境 | API URL |
-|------|---------|
-| 開発環境（Base Sepolia） | `https://api-sepolia.basescan.org/api` |
-| 本番環境（Base Mainnet） | `https://api.basescan.org/api` |
+Etherscan API v2を使用し、単一のエンドポイントですべてのチェーンをサポート：
+
+| 環境 | Chain ID | Network |
+|------|----------|---------|
+| 開発環境 | 84532 | Base Sepolia |
+| 本番環境 | 8453 | Base Mainnet |
+
+**統一APIエンドポイント**: `https://api.etherscan.io/v2/api`
 
 ### APIリクエスト
 
 ```
-GET https://api.basescan.org/api?module=proxy&action=eth_getBlockByNumber&tag=latest&boolean=true&apikey=YOUR_API_KEY
+GET https://api.etherscan.io/v2/api?chainid=8453&module=proxy&action=eth_getBlockByNumber&tag=latest&boolean=true&apikey=YOUR_API_KEY
 ```
 
 **パラメータ:**
+- `chainid`: チェーンID（Base Mainnet: 8453, Base Sepolia: 84532）
 - `module=proxy`: Ethereumノードへのプロキシ呼び出し
 - `action=eth_getBlockByNumber`: 特定ブロックの情報を取得
 - `tag=latest`: 最新ブロックを指定
 - `boolean=true`: トランザクション詳細を含める
-- `apikey`: Basescan APIキー（オプション、レート制限緩和のため推奨）
+- `apikey`: Etherscan APIキー（Etherscanから取得、全チェーンで使用可能）
 
 ### レスポンス構造
 
@@ -198,10 +203,11 @@ if (!paletteSelection) {
 
 ### レート制限
 
-**Basescan API:**
+**Etherscan API v2:**
 - 無料枠: 1秒あたり5リクエスト
 - APIキー使用時: レート制限が緩和される
 - この実装では1ユーザーあたり1リクエストのみなので問題なし
+- **重要**: Etherscanから取得したAPIキーは、Base Chainを含む60以上のサポート対象チェーンすべてで使用可能
 
 ## 実装詳細
 
@@ -224,11 +230,12 @@ export function selectPaletteFromHash(txHash: string): PaletteSelection
 ### app/api/blockhash/route.ts
 
 ```typescript
-export async function GET(request: NextRequest)
+export async function GET(_request: NextRequest)
 ```
 
 **責務:**
-- 環境に応じてBasescan APIのURLを切り替え
+- Etherscan API v2を使用してBase Chainのトランザクションを取得
+- 環境に応じてChain ID（8453 or 84532）を切り替え
 - 最新ブロックのトランザクションハッシュを取得
 - エラー時のフォールバック処理
 
@@ -261,7 +268,8 @@ brightness = paletteSelection.densityModifier(brightness, i, j);
 ### .example.env
 
 ```env
-# Basescan API Key (optional - 無料枠で動作可能)
+# Etherscan API Key (https://etherscan.io/myapikey から取得)
+# Base Chainを含む全チェーンで使用可能（optional - 無料枠で動作可能）
 NEXT_PUBLIC_BASESCAN_API_KEY=
 
 # Environment (development or production)
@@ -370,15 +378,18 @@ useEffect(() => {
 
 ### レート制限エラー
 
-**原因**: Basescan APIのレート制限に達した
+**原因**: Etherscan API v2のレート制限に達した
 
 **対処**:
 1. 環境変数 `NEXT_PUBLIC_BASESCAN_API_KEY` を設定
-2. Basescan でAPIキーを取得（無料）
+2. Etherscan (https://etherscan.io/myapikey) でAPIキーを取得（無料）
+3. このキーはBase Chainを含む60以上のチェーンで使用可能
 
 ## 参考リンク
 
-- [Basescan API Documentation](https://docs.basescan.org/)
+- [Etherscan API v2 Documentation](https://docs.etherscan.io/)
+- [Etherscan API v2 Migration Guide](https://docs.etherscan.io/v2-migration)
+- [Etherscan API Key](https://etherscan.io/myapikey) - APIキー取得ページ
 - [Base Chain Documentation](https://docs.base.org/)
 - [p5.js Reference](https://p5js.org/reference/)
 - [ASCII Art Wikipedia](https://en.wikipedia.org/wiki/ASCII_art)
