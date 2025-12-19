@@ -168,16 +168,44 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
         onClick={async () => {
           try {
             const blob = new Blob([svgData], { type: "image/svg+xml" });
+            const fileName = `blocken_camera_${Date.now()}.svg`;
+
+            // Web Share API が利用可能な場合（主にモバイル）
+            if (
+              typeof navigator.share === "function" &&
+              typeof navigator.canShare === "function"
+            ) {
+              try {
+                const file = new File([blob], fileName, {
+                  type: "image/svg+xml",
+                });
+                const shareData = {
+                  files: [file],
+                  title: "Blocken Camera",
+                };
+
+                if (navigator.canShare(shareData)) {
+                  await navigator.share(shareData);
+                  return;
+                }
+              } catch (shareErr) {
+                // Web Share APIが失敗した場合はフォールバックへ
+                console.log("Web Share API failed, falling back to download");
+              }
+            }
+
+            // フォールバック：従来のダウンロード方法（PC用）
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `blocken_camera_${Date.now()}.svg`;
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
           } catch (err) {
             console.error("Save error:", err);
+            alert("画像の保存に失敗しました。もう一度お試しください。");
           }
         }}
         className={styles.mintButton}
