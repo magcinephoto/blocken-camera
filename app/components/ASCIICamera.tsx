@@ -1,6 +1,6 @@
 "use client";
 import { P5Canvas, Sketch } from "@p5-wrapper/react";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import styles from "./ASCIICamera.module.css";
 
 export function ASCIICamera() {
@@ -10,6 +10,7 @@ export function ASCIICamera() {
   const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [sketchKey, setSketchKey] = useState(0);
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const currentASCIIRef = useRef<string>('');
 
   // SVG生成関数
@@ -76,10 +77,26 @@ export function ASCIICamera() {
 
   // カメラ切り替えハンドラ
   const handleToggleCamera = useCallback(() => {
+    if (isSwitchingCamera) return; // 二重実行防止
+
     setIsLoading(true);
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+    setIsSwitchingCamera(true);
+    // 古いsketchを破棄（クリーンアップでカメラ停止）
     setSketchKey(prev => prev + 1);
-  }, []);
+  }, [isSwitchingCamera]);
+
+  // カメラ切り替えの段階的処理
+  useEffect(() => {
+    if (!isSwitchingCamera) return;
+
+    // カメラリソースの解放を待つ（250ms）
+    const timer = setTimeout(() => {
+      setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+      setIsSwitchingCamera(false);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [isSwitchingCamera]);
 
   const sketch: Sketch = useCallback((p5) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -123,6 +140,7 @@ export function ASCIICamera() {
           setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
           setError("カメラの切り替えに失敗しました。このデバイスではこのカメラが利用できない可能性があります。");
           setIsLoading(false);
+          setIsSwitchingCamera(false);
         });
 
         // getUserMediaのエラーを捕捉（ストリーム取得後）
@@ -251,13 +269,21 @@ export function ASCIICamera() {
       <div className={styles.cameraContainer}>
         {mode === 'camera' ? (
           <>
-            <div className={styles.asciiWrapper}>
-              <P5Canvas sketch={sketch} key={sketchKey} />
-            </div>
+            {!isSwitchingCamera && (
+              <div className={styles.asciiWrapper}>
+                <P5Canvas sketch={sketch} key={sketchKey} />
+              </div>
+            )}
+            {isSwitchingCamera && (
+              <div className={styles.loadingContainer}>
+                <div className={styles.loadingSpinner}></div>
+                <p className={styles.loadingText}>カメラを切り替え中...</p>
+              </div>
+            )}
             <button
               className={styles.flipButton}
               onClick={handleToggleCamera}
-              disabled={isLoading || Boolean(error)}
+              disabled={isLoading || Boolean(error) || isSwitchingCamera}
               aria-label="カメラ切り替え"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1100FA" strokeWidth="2">
