@@ -14,6 +14,20 @@ const ASCIICamera = dynamic(
 export default function Home() {
   const { isFrameReady, setFrameReady } = useMiniKit();
 
+  // コントラクトURL生成ロジック
+  const isDev = process.env.NEXT_PUBLIC_ENVIRONMENT === 'development';
+  const contractAddress = isDev
+    ? process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS_SEPOLIA
+    : process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS_MAINNET;
+
+  const baseScanUrl = isDev
+    ? 'https://sepolia.basescan.org'
+    : 'https://basescan.org';
+
+  const contractUrl = contractAddress
+    ? `${baseScanUrl}/address/${contractAddress}`
+    : null;
+
   // Initialize the miniapp
   useEffect(() => {
     if (!isFrameReady) {
@@ -35,6 +49,15 @@ export default function Home() {
         {/* ASCIIカメラコンポーネント */}
         <ASCIICamera />
       </div>
+
+      {/* コントラクトリンク */}
+      {contractUrl && (
+        <div className={styles.footer}>
+          <a href={contractUrl} target="_blank" rel="noopener noreferrer">
+            Contract
+          </a>
+        </div>
+      )}
     </div>
   );
 }
