@@ -11,7 +11,7 @@
 ## デモ
 
 - **アプリURL**: https://blocken-camera.vercel.app/
-- **スライド**: https://example.com (Google Slides等)
+- **スライド**: https://raw.githubusercontent.com/magcinephoto/blocken-camera/refs/heads/main/SLIDE.pdf
 
 ## 推しポイント
 
