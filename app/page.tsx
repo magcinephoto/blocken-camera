@@ -32,7 +32,8 @@ export default function Home() {
   useEffect(() => {
     if (!isFrameReady) {
       // デバッグログ追加
-      console.log('[MiniKit Debug] Platform:', context?.platformType);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      console.log('[MiniKit Debug] Platform:', (context as any)?.platformType || (context as any)?.client?.platform);
       console.log('[MiniKit Debug] Context:', context);
       console.log('[MiniKit Debug] Calling setFrameReady()');
       setFrameReady();
