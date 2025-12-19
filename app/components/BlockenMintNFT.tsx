@@ -163,6 +163,28 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
           )}
         </div>
       )}
+      {/* 画像保存ボタン */}
+      <button
+        onClick={async () => {
+          try {
+            const blob = new Blob([svgData], { type: "image/svg+xml" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `blocken_camera_${Date.now()}.svg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          } catch (err) {
+            console.error("Save error:", err);
+          }
+        }}
+        className={styles.saveButton}
+        type="button"
+      >
+        画像を保存
+      </button>
     </div>
   );
 }
