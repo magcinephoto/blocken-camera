@@ -16,6 +16,13 @@
   max-width: 800px;
 }
 
+.asciiWrapper canvas {
+  /* p5.jsが既にレスポンシブ対応しているので追加のスケーリングは不要 */
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: block;
+}
+
 /* ローディング状態 */
 .loadingContainer {
   display: flex;
