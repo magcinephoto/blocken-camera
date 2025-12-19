@@ -13,21 +13,37 @@ export function ASCIICamera() {
   const currentASCIIRef = useRef<string>('');
 
   // SVG生成関数
-  const generateSVGDataUrl = useCallback((asciiText: string): string => {
+  const generateSVGDataUrl = useCallback((asciiText: string, isFrontCamera: boolean): string => {
     const lines = asciiText.split('\n').filter(line => line.length > 0);
 
-    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="340" height="328">`;
+    // 動的サイズ計算の定数
+    const fontSize = 8;
+    const lineHeight = 4.8;
+    const padding = 20;
+    const charWidth = 4.8; // Courier Newの文字幅（フォントサイズと同じ比率）
+
+    // インカメラの場合は各行を左右反転
+    const processedLines = isFrontCamera
+      ? lines.map(line => line.split('').reverse().join(''))
+      : lines;
+
+    // SVGサイズを動的に計算
+    const maxLineLength = Math.max(...processedLines.map(line => line.length));
+    const svgWidth = Math.ceil(maxLineLength * charWidth + (padding * 2));
+    const svgHeight = Math.ceil(processedLines.length * lineHeight + (padding * 2));
+
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">`;
     svgContent += `<rect width="100%" height="100%" fill="#FFFFFF"/>`;
 
-    lines.forEach((line, index) => {
-      const y = 20 + (index * 4.8);
+    processedLines.forEach((line, index) => {
+      const y = padding + (index * lineHeight);
       const escapedLine = line
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
-      svgContent += `<text x="20" y="${y}" font-family="'Courier New', monospace" font-size="8px" fill="#1100FA" letter-spacing="0">${escapedLine}</text>`;
+      svgContent += `<text x="${padding}" y="${y}" font-family="'Courier New', monospace" font-size="${fontSize}px" fill="#1100FA" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
     });
 
     svgContent += `</svg>`;
@@ -43,13 +59,14 @@ export function ASCIICamera() {
     }
 
     try {
-      const svgUrl = generateSVGDataUrl(currentASCIIRef.current);
+      const isFrontCamera = facingMode === 'user';
+      const svgUrl = generateSVGDataUrl(currentASCIIRef.current, isFrontCamera);
       setSvgDataUrl(svgUrl);
       setMode('preview');
     } catch (err) {
       console.error('Capture error:', err);
     }
-  }, [isLoading, error, generateSVGDataUrl]);
+  }, [isLoading, error, facingMode, generateSVGDataUrl]);
 
   // 削除ボタンハンドラ
   const handleDelete = useCallback(() => {
