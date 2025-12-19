@@ -1,159 +1,108 @@
-# Waitlist Mini App Quickstart
+# Blocken Camera
 
-This is a demo Mini App application built using OnchainKit and the Farcaster SDK. Build a waitlist sign-up mini app for your company that can be published to the Base app and Farcaster. 
+## プロジェクト概要
 
-> [!IMPORTANT]  
-> Before interacting with this demo, please review our [disclaimer](#disclaimer) — there are **no official tokens or apps** associated with Cubey, Base, or Coinbase.
+このプロジェクトは、Next.js 15、OnchainKit、Farcaster SDKを使用して構築されたFarcaster Mini Appです。Base appとFarcasterエコシステムに公開するためのウェイトリスト登録アプリケーションです。React 19とwagmiを使用してBaseチェーン上でブロックチェーンとのやり取りを行います。
 
-## Prerequisites
-
-Before getting started, make sure you have:
-
-* Base app account
-* A [Farcaster](https://farcaster.xyz/) account
-* [Vercel](https://vercel.com/) account for hosting the application
-* [Coinbase Developer Platform](https://portal.cdp.coinbase.com/) Client API Key
-
-## Getting Started
-
-### 1. Clone this repository 
+## 開発コマンド
 
 ```bash
-git clone https://github.com/base/demos.git
-```
-
-### 2. Install dependencies:
-
-```bash
-cd demos/minikit/waitlist-mini-app-qs
-npm install
-```
-
-### 3. Configure environment variables
-
-Create a `.env.local` file and add your environment variables:
-
-```bash
-NEXT_PUBLIC_PROJECT_NAME="Your App Name"
-NEXT_PUBLIC_ONCHAINKIT_API_KEY=<Replace-WITH-YOUR-CDP-API-KEY>
-NEXT_PUBLIC_URL=
-```
-
-### 4. Run locally:
-
-```bash
+# 開発サーバー起動
 npm run dev
+
+# 本番環境用ビルド
+npm run build
+
+# 本番サーバー起動
+npm start
+
+# リンター実行
+npm run lint
 ```
 
-## Customization
+## 環境変数設定
 
-### Update Manifest Configuration
+必須の環境変数（`.example.env`参照）：
+- `NEXT_PUBLIC_URL` - アプリの公開URL（本番環境ではVercel環境変数から自動検出）
+- `NEXT_PUBLIC_ONCHAINKIT_API_KEY` - Coinbase Developer Platform APIキー
+- `NEXT_PUBLIC_PROJECT_NAME` - アプリ名
 
-The `minikit.config.ts` file configures your manifest located at `app/.well-known/farcaster.json`.
+アプリは環境に基づいてURLを自動決定：
+- 本番環境: `NEXT_PUBLIC_URL`または`VERCEL_PROJECT_PRODUCTION_URL`を使用
+- 開発環境: `http://localhost:3000`にフォールバック
 
-**Skip the `accountAssociation` object for now.**
+## アーキテクチャ
 
-To personalize your app, change the `name`, `subtitle`, and `description` fields and add images to your `/public` folder. Then update their URLs in the file.
+### 認証フロー
 
-## Deployment
+アプリは2つのモードを持つ認証システムを実装しています：
 
-### 1. Deploy to Vercel
+**本番モード** (`app/page.tsx:43-56`):
+- OnchainKitの`useQuickAuth`フックを使用してJWTトークンを検証
+- FarcasterがMiniApp SDK経由で`Authorization`ヘッダーにJWTを提供
+- トークンは`/api/auth`でアプリのドメインに対して検証される
 
-```bash
-vercel --prod
-```
+**開発モード** (`app/page.tsx:57-68`):
+- `/api/auth`エンドポイントへ直接フェッチ
+- Farcasterコンテキストなしでローカルテスト用のダミーユーザーデータを返す
 
-You should have a URL deployed to a domain similar to: `https://your-vercel-project-name.vercel.app/`
+**トークン検証** (`app/api/auth/route.ts:40-96`):
+- `@farcaster/quick-auth`クライアントを使用してJWTトークンを検証
+- リクエストヘッダーからドメインを抽出（Origin > Host > 環境変数の優先順位）
+- 検証成功時にユーザーFID（Farcaster ID）を返す
+- 開発環境では`NODE_ENV !== "production"`の場合にダミーユーザーを返す
 
-### 2. Update environment variables
+### プロバイダーアーキテクチャ
 
-Add your production URL to your local `.env` file:
+**RootProvider** (`app/rootProvider.tsx`):
+- アプリ全体を`OnchainKitProvider`でラップ
+- Baseチェーン接続を設定
+- MiniKitをautoConnectで有効化
+- ウォレットモーダル表示を提供
 
-```bash
-NEXT_PUBLIC_PROJECT_NAME="Your App Name"
-NEXT_PUBLIC_ONCHAINKIT_API_KEY=<Replace-WITH-YOUR-CDP-API-KEY>
-NEXT_PUBLIC_URL=https://your-vercel-project-name.vercel.app/
-```
+**Layout** (`app/layout.tsx`):
+- `minikit.config.ts`から動的メタデータを生成
+- Base app ID: `694149d4d19763ca26ddc34b`を含む
+- 起動ボタン付きのFarcasterフレームメタデータを作成
+- 子要素をOnchainKitの`SafeArea`コンポーネントでラップ
 
-### 3. Upload environment variables to Vercel
+### マニフェスト設定
 
-Add environment variables to your production environment:
+**minikit.config.ts**:
+- Farcaster Mini Appマニフェストの中心的な設定
+- `accountAssociation`オブジェクト（署名済み認証情報）を含む
+- アプリのメタデータ（名前、説明、画像、URL）を定義
+- マニフェストは`app/.well-known/farcaster.json/route.ts`で提供
 
-```bash
-vercel env add NEXT_PUBLIC_PROJECT_NAME production
-vercel env add NEXT_PUBLIC_ONCHAINKIT_API_KEY production
-vercel env add NEXT_PUBLIC_URL production
-```
+**重要**: アカウントアソシエーションの認証情報は既に設定済みで、Farcasterの開発者ポータルでマニフェストを再署名する場合を除き、変更しないでください。
 
-## Account Association
+## 主要な統合ポイント
 
-### 1. Sign Your Manifest
+### OnchainKit統合
+- MiniKitフック: `useMiniKit`, `useQuickAuth`
+- コンテキストがユーザーデータを提供: `context.user.displayName`
+- フレームの準備状態は`setFrameReady()`で管理
 
-1. Navigate to [Farcaster Manifest tool](https://farcaster.xyz/~/developers/mini-apps/manifest)
-2. Paste your domain in the form field (ex: your-vercel-project-name.vercel.app)
-3. Click the `Generate account association` button and follow the on-screen instructions for signing with your Farcaster wallet
-4. Copy the `accountAssociation` object
+### Farcaster SDK
+- `@farcaster/quick-auth`によるJWT検証
+- `withValidManifest`によるマニフェスト検証
+- アプリ署名用のアカウントアソシエーション
 
-### 2. Update Configuration
+## デプロイワークフロー
 
-Update your `minikit.config.ts` file to include the `accountAssociation` object:
+1. Vercelにデプロイ: `vercel --prod`
+2. Vercelに環境変数を追加:
+   ```bash
+   vercel env add NEXT_PUBLIC_PROJECT_NAME production
+   vercel env add NEXT_PUBLIC_ONCHAINKIT_API_KEY production
+   vercel env add NEXT_PUBLIC_URL production
+   ```
+3. マニフェストを変更する場合は、https://farcaster.xyz/~/developers/mini-apps/manifest で再署名
+4. 公開前に https://base.dev/preview でテスト
 
-```ts
-export const minikitConfig = {
-    accountAssociation: {
-        "header": "your-header-here",
-        "payload": "your-payload-here",
-        "signature": "your-signature-here"
-    },
-    frame: {
-        // ... rest of your frame configuration
-    },
-}
-```
+## 重要事項
 
-### 3. Deploy Updates
-
-```bash
-vercel --prod
-```
-
-## Testing and Publishing
-
-### 1. Preview Your App
-
-Go to [base.dev/preview](https://base.dev/preview) to validate your app:
-
-1. Add your app URL to view the embeds and click the launch button to verify the app launches as expected
-2. Use the "Account association" tab to verify the association credentials were created correctly
-3. Use the "Metadata" tab to see the metadata added from the manifest and identify any missing fields
-
-### 2. Publish to Base App
-
-To publish your app, create a post in the Base app with your app's URL.
-
-## Learn More
-
-For detailed step-by-step instructions, see the [Create a Mini App tutorial](https://docs.base.org/docs/mini-apps/quickstart/create-new-miniapp/) in the Base documentation.
-
-
----
-
-## Disclaimer  
-
-This project is a **demo application** created by the **Base / Coinbase Developer Relations team** for **educational and demonstration purposes only**.  
-
-**There is no token, cryptocurrency, or investment product associated with Cubey, Base, or Coinbase.**  
-
-Any social media pages, tokens, or applications claiming to be affiliated with, endorsed by, or officially connected to Cubey, Base, or Coinbase are **unauthorized and fraudulent**.  
-
-We do **not** endorse or support any third-party tokens, apps, or projects using the Cubey name or branding.  
-
-> [!WARNING]
-> Do **not** purchase, trade, or interact with any tokens or applications claiming affiliation with Coinbase, Base, or Cubey.  
-> Coinbase and Base will never issue a token or ask you to connect your wallet for this demo.  
-
-For official Base developer resources, please visit:  
-- [https://base.org](https://base.org)  
-- [https://docs.base.org](https://docs.base.org)  
-
----
+- Base app IDは`app/layout.tsx:13`にハードコード
+- Webpack設定で`pino-pretty`、`lokijs`、`encoding`をビルドの問題を避けるために除外
+- コードベースの一部（`app/page.tsx:33-58`）に日本語コメントあり
+- アカウントアソシエーション署名は環境固有でデプロイされたドメインに紐付けられている
