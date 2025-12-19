@@ -12,7 +12,7 @@ const ASCIICamera = dynamic(
 );
 
 export default function Home() {
-  const { isFrameReady, setFrameReady, context } = useMiniKit();
+  const { isFrameReady, setFrameReady } = useMiniKit();
 
   // コントラクトURL生成ロジック
   const isDev = process.env.NEXT_PUBLIC_ENVIRONMENT === 'development';
@@ -31,14 +31,9 @@ export default function Home() {
   // Initialize the miniapp
   useEffect(() => {
     if (!isFrameReady) {
-      // デバッグログ追加
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      console.log('[MiniKit Debug] Platform:', (context as any)?.platformType || (context as any)?.client?.platform);
-      console.log('[MiniKit Debug] Context:', context);
-      console.log('[MiniKit Debug] Calling setFrameReady()');
       setFrameReady();
     }
-  }, [setFrameReady, isFrameReady, context]);
+  }, [setFrameReady, isFrameReady]);
 
   return (
     <div className={styles.container}>
