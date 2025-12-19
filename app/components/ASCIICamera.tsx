@@ -34,7 +34,7 @@ export function ASCIICamera() {
     const svgHeight = Math.ceil(lines.length * lineHeight + (padding * 2));
 
     let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">`;
-    svgContent += `<rect width="100%" height="100%" fill="#FFFFFF"/>`;
+    svgContent += `<rect width="100%" height="100%" fill="#1100FA"/>`;
 
     lines.forEach((line, index) => {
       const y = padding + (index * lineHeight);
@@ -44,7 +44,7 @@ export function ASCIICamera() {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
-      svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" fill="#1100FA" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
+      svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" fill="#FFFFFF" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
     });
 
     svgContent += `</svg>`;
@@ -126,8 +126,8 @@ export function ASCIICamera() {
         p5.textSize(fontSize);
       }
 
-      p5.fill('#1100FA'); // 青色
-      p5.background('#FFFFFF'); // 白背景
+      p5.fill('#FFFFFF'); // 白色
+      p5.background('#1100FA'); // 青背景
 
       // カメラキャプチャの設定
       video = p5.createCapture({
@@ -183,7 +183,7 @@ export function ASCIICamera() {
         if (video.elt.readyState < 2) return; // HAVE_CURRENT_DATA (2) 以上を待つ
 
         // 毎フレーム背景をクリア
-        p5.background('#FFFFFF');
+        p5.background('#1100FA');
 
         // ネイティブCanvasにビデオを描画してピクセルデータを取得
         captureContext.drawImage(video.elt, 0, 0, videoWidth, videoHeight);
@@ -195,7 +195,7 @@ export function ASCIICamera() {
         const scaleY = p5.height / canvasHeight;
 
         // テキスト描画設定
-        p5.fill('#1100FA');
+        p5.fill('#FFFFFF');
         p5.noStroke();
         p5.textAlign(p5.LEFT, p5.BASELINE);
 
