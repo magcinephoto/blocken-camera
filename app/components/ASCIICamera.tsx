@@ -2,6 +2,7 @@
 import { P5Canvas, Sketch } from "@p5-wrapper/react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import styles from "./ASCIICamera.module.css";
+import { BlockenMintNFT } from "./BlockenMintNFT";
 
 export function ASCIICamera() {
   const [error, setError] = useState<string | null>(null);
@@ -12,6 +13,13 @@ export function ASCIICamera() {
   const [sketchKey, setSketchKey] = useState(0);
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const currentASCIIRef = useRef<string>('');
+
+  // SVG文字列抽出関数
+  const extractSvgString = useCallback((svgDataUrl: string): string => {
+    // "data:image/svg+xml;base64,XXXXX" からXXXXXを抽出してデコード
+    const base64Data = svgDataUrl.split(',')[1];
+    return atob(base64Data);
+  }, []);
 
   // SVG生成関数
   const generateSVGDataUrl = useCallback((asciiText: string, isFrontCamera: boolean): string => {
@@ -303,11 +311,16 @@ export function ASCIICamera() {
         ) : (
           <>
             {svgDataUrl && (
-              <img
-                src={svgDataUrl}
-                alt="Captured ASCII Art"
-                className={styles.previewImage}
-              />
+              <>
+                <img
+                  src={svgDataUrl}
+                  alt="Captured ASCII Art"
+                  className={styles.previewImage}
+                />
+                <div style={{ marginTop: '20px' }}>
+                  <BlockenMintNFT svgData={extractSvgString(svgDataUrl)} />
+                </div>
+              </>
             )}
             <button
               className={styles.deleteButton}
