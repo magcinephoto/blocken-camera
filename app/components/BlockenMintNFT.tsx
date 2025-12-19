@@ -17,7 +17,7 @@ interface BlockenMintNFTProps {
 }
 
 export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const chainId = useChainId();
   const [mintedTokenId, setMintedTokenId] = useState<bigint | null>(null);
 
@@ -80,7 +80,7 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
   }, [isConfirmed, currentTokenId]);
 
   const handleMint = async () => {
-    if (!svgData) {
+    if (!svgData || !contractAddress) {
       return;
     }
 

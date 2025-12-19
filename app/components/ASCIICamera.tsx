@@ -1,6 +1,6 @@
 "use client";
 import { P5Canvas, Sketch } from "@p5-wrapper/react";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import styles from "./ASCIICamera.module.css";
 import { BlockenMintNFT } from "./BlockenMintNFT";
 
