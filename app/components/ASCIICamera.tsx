@@ -12,6 +12,7 @@ export function ASCIICamera() {
   const [mode, setMode] = useState<'camera' | 'preview'>('camera');
   const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
   const currentASCIIRef = useRef<string>('');
+  const currentCharIndicesRef = useRef<number[][]>([]);
   const [paletteSelection, setPaletteSelection] = useState<PaletteSelection | null>(null);
 
   // トランザクションハッシュを取得してパレットを選択
@@ -47,7 +48,11 @@ export function ASCIICamera() {
   }, []);
 
   // SVG生成関数
-  const generateSVGDataUrl = useCallback((asciiText: string): string => {
+  const generateSVGDataUrl = useCallback((
+    asciiText: string,
+    charIndices: number[][],
+    paletteSelection: PaletteSelection
+  ): string => {
     const lines = asciiText.split('\n').filter(line => line.length > 0);
 
     // 動的サイズ計算の定数
@@ -64,15 +69,40 @@ export function ASCIICamera() {
     let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">`;
     svgContent += `<rect width="100%" height="100%" fill="#1100FA"/>`;
 
-    lines.forEach((line, index) => {
-      const y = padding + (index * lineHeight);
-      const escapedLine = line
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
-      svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" fill="#FFFFFF" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
+    lines.forEach((line, lineIndex) => {
+      const y = padding + (lineIndex * lineHeight);
+
+      if (paletteSelection.colorMode === 'monochrome') {
+        // モノクロモード: 既存の方法（行全体を白色で表示）
+        const escapedLine = line
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&apos;');
+        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" fill="#FFFFFF" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
+      } else {
+        // レインボーモード: <tspan>で各文字を個別に色付け
+        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" letter-spacing="0" dominant-baseline="hanging">`;
+
+        for (let charPos = 0; charPos < line.length; charPos++) {
+          const char = line[charPos];
+          const charIndex = charIndices[lineIndex]?.[charPos] ?? 0;
+          const color = paletteSelection.getColor(charIndex);
+
+          // 文字をエスケープ
+          let escapedChar = char;
+          if (char === '&') escapedChar = '&amp;';
+          else if (char === '<') escapedChar = '&lt;';
+          else if (char === '>') escapedChar = '&gt;';
+          else if (char === '"') escapedChar = '&quot;';
+          else if (char === "'") escapedChar = '&apos;';
+
+          svgContent += `<tspan fill="rgb(${color.r},${color.g},${color.b})">${escapedChar}</tspan>`;
+        }
+
+        svgContent += `</text>`;
+      }
     });
 
     svgContent += `</svg>`;
@@ -83,18 +113,22 @@ export function ASCIICamera() {
 
   // シャッターボタンハンドラ
   const handleShutter = useCallback(() => {
-    if (!currentASCIIRef.current || isLoading || error) {
+    if (!currentASCIIRef.current || !currentCharIndicesRef.current || !paletteSelection || isLoading || error) {
       return;
     }
 
     try {
-      const svgUrl = generateSVGDataUrl(currentASCIIRef.current);
+      const svgUrl = generateSVGDataUrl(
+        currentASCIIRef.current,
+        currentCharIndicesRef.current,
+        paletteSelection
+      );
       setSvgDataUrl(svgUrl);
       setMode('preview');
     } catch (err) {
       console.error('Capture error:', err);
     }
-  }, [isLoading, error, generateSVGDataUrl]);
+  }, [isLoading, error, generateSVGDataUrl, paletteSelection]);
 
   // 削除ボタンハンドラ
   const handleDelete = useCallback(() => {
@@ -232,9 +266,11 @@ export function ASCIICamera() {
         // 選択されたパレットを使用
         const letters = paletteSelection.palette;
         let asciiImage = "";
+        const charIndices: number[][] = [];
         const offsetY = 6 * scaleY; // Y座標オフセット（正方形に合わせて調整）
 
         for (let j = 0; j < videoHeight; j++) {
+          const currentRow: number[] = [];
           for (let i = 0; i < videoWidth; i++) {
             const pixelIndex = (i + j * videoWidth) * 4;
 
@@ -259,6 +295,9 @@ export function ASCIICamera() {
             );
             const ch = letters.charAt(charIndex);
 
+            // charIndexを保存
+            currentRow.push(charIndex);
+
             // キャンバスに文字を描画（スケーリング適用）
             if (ch && ch !== ' ') {
               // 文字インデックスに基づいて色を取得
@@ -270,11 +309,13 @@ export function ASCIICamera() {
 
             asciiImage += ch;
           }
+          charIndices.push(currentRow);
           asciiImage += "\n";
         }
 
         // Refに保存（シャッター用）
         currentASCIIRef.current = asciiImage;
+        currentCharIndicesRef.current = charIndices;
       } catch (e) {
         // エラーをキャッチして続行
         console.error('Draw error:', e);
