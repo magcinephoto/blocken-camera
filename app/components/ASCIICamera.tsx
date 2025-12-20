@@ -14,6 +14,8 @@ export function ASCIICamera() {
   const currentASCIIRef = useRef<string>('');
   const currentCharIndicesRef = useRef<number[][]>([]);
   const [paletteSelection, setPaletteSelection] = useState<PaletteSelection | null>(null);
+  const [capturedDimensions, setCapturedDimensions] = useState<{ width: number; height: number } | null>(null);
+  const p5InstanceRef = useRef<any>(null);
 
   // トランザクションハッシュを取得してパレットを選択
   useEffect(() => {
@@ -124,6 +126,15 @@ export function ASCIICamera() {
         paletteSelection
       );
       setSvgDataUrl(svgUrl);
+
+      // P5インスタンスから現在のサイズを取得して保存
+      if (p5InstanceRef.current) {
+        setCapturedDimensions({
+          width: Math.round(p5InstanceRef.current.width),
+          height: Math.round(p5InstanceRef.current.height)
+        });
+      }
+
       setMode('preview');
     } catch (err) {
       console.error('Capture error:', err);
@@ -133,6 +144,7 @@ export function ASCIICamera() {
   // 削除ボタンハンドラ
   const handleDelete = useCallback(() => {
     setSvgDataUrl(null);
+    setCapturedDimensions(null);
     setMode('camera');
   }, []);
 
@@ -234,6 +246,9 @@ export function ASCIICamera() {
           setIsLoading(false);
         }
       }, 5000);
+
+      // P5インスタンスを保存
+      p5InstanceRef.current = p5;
     };
 
     p5.draw = () => {
@@ -405,8 +420,8 @@ export function ASCIICamera() {
                   src={svgDataUrl}
                   alt="Captured ASCII Art"
                   className={styles.previewImage}
-                  width={400}
-                  height={400}
+                  width={capturedDimensions?.width ?? 400}
+                  height={capturedDimensions?.height ?? 400}
                 />
                 <div className={styles.mintButtonWrapper}>
                   <BlockenMintNFT svgData={extractSvgString(svgDataUrl)} />
