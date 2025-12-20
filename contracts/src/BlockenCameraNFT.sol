@@ -5,6 +5,7 @@ import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {Base64} from "openzeppelin-contracts/contracts/utils/Base64.sol";
+import {SSTORE2} from "./libraries/SSTORE2.sol";
 
 /**
  * @title BlockenCameraNFT
@@ -21,8 +22,14 @@ contract BlockenCameraNFT is ERC721, Ownable {
     // プラットフォーム手数料（Wei単位、初期値0 ETH）
     uint256 public platformFee;
 
-    // トークンIDごとのSVGデータを記録
-    mapping(uint256 => string) private tokenSvgData;
+    // SVGファイルのメタデータ構造
+    struct ImageMetadata {
+        address[] chunks;       // チャンクのコントラクトアドレス配列
+        uint256 totalLength;    // 総データサイズ
+    }
+
+    // トークンIDごとの画像メタデータ
+    mapping(uint256 => ImageMetadata) private _tokenImageMetadata;
 
     // トークンIDごとのミント時刻を記録
     mapping(uint256 => uint256) public tokenTimestamps;
@@ -50,20 +57,16 @@ contract BlockenCameraNFT is ERC721, Ownable {
     }
 
     /**
-     * @dev SVGデータを受け取ってNFTをミント
-     * @param svgData SVG文字列（フロントエンドで生成されたもの）
+     * @dev SVGデータをチャンク分割して受け取り、NFTをミント
+     * @param svgChunks SVGデータのチャンク配列（フロントエンドで分割されたもの）
      * @return tokenId ミントされたトークンID
      */
-    function mint(string calldata svgData) public payable returns (uint256) {
+    function mint(bytes[] calldata svgChunks) public payable returns (uint256) {
         // プラットフォーム手数料のチェック
         require(msg.value >= platformFee, "Insufficient platform fee");
 
         // SVGデータの基本的なバリデーション
-        require(bytes(svgData).length > 0, "SVG data cannot be empty");
-        require(
-            bytes(svgData).length <= 100000,
-            "SVG data too large (max 100KB)"
-        );
+        require(svgChunks.length > 0, "No SVG data provided");
 
         // トークンIDの生成
         uint256 tokenId = _tokenIdCounter;
@@ -71,9 +74,19 @@ contract BlockenCameraNFT is ERC721, Ownable {
             _tokenIdCounter++;
         }
 
-        // データの保存
+        // メタデータの初期化
+        ImageMetadata storage metadata = _tokenImageMetadata[tokenId];
+        metadata.totalLength = 0;
+
+        // チャンクをSSTORE2で保存
+        for (uint8 i = 0; i < svgChunks.length; i++) {
+            require(svgChunks[i].length > 0, "Empty chunk not allowed");
+            metadata.chunks.push(SSTORE2.write(svgChunks[i]));
+            metadata.totalLength += svgChunks[i].length;
+        }
+
+        // タイムスタンプ保存
         uint256 timestamp = block.timestamp;
-        tokenSvgData[tokenId] = svgData;
         tokenTimestamps[tokenId] = timestamp;
 
         // NFTのミント
@@ -98,7 +111,8 @@ contract BlockenCameraNFT is ERC721, Ownable {
         address owner = _ownerOf(tokenId);
         require(owner != address(0), "Token does not exist");
 
-        string memory svgData = tokenSvgData[tokenId];
+        // チャンクからSVGデータを復元
+        bytes memory svgData = getSvgData(tokenId);
         uint256 timestamp = tokenTimestamps[tokenId];
 
         // メタデータJSON生成
@@ -119,7 +133,7 @@ contract BlockenCameraNFT is ERC721, Ownable {
     function generateMetadata(
         uint256 tokenId,
         uint256 timestamp,
-        string memory svgData
+        bytes memory svgData
     ) internal pure returns (string memory) {
         return
             string(
@@ -129,7 +143,7 @@ contract BlockenCameraNFT is ERC721, Ownable {
                     '","description":"ASCII art camera NFT stored entirely on-chain. Minted at ',
                     timestamp.toString(),
                     '","image":"data:image/svg+xml;base64,',
-                    Base64.encode(bytes(svgData)),
+                    Base64.encode(svgData),
                     '","attributes":[',
                     '{"trait_type":"Mint Timestamp","value":"',
                     timestamp.toString(),
@@ -170,12 +184,39 @@ contract BlockenCameraNFT is ERC721, Ownable {
     }
 
     /**
-     * @dev 特定トークンのSVGデータを取得
+     * @dev 特定トークンのSVGデータを取得（全チャンクを結合）
      */
-    function getSvgData(uint256 tokenId) public view returns (string memory) {
+    function getSvgData(uint256 tokenId) public view returns (bytes memory) {
         address owner = _ownerOf(tokenId);
         require(owner != address(0), "Token does not exist");
-        return tokenSvgData[tokenId];
+
+        ImageMetadata storage metadata = _tokenImageMetadata[tokenId];
+        bytes memory data;
+
+        // チャンクを結合
+        for (uint8 i = 0; i < metadata.chunks.length; i++) {
+            data = abi.encodePacked(data, SSTORE2.read(metadata.chunks[i]));
+        }
+
+        return data;
+    }
+
+    /**
+     * @dev 特定トークンのチャンク数を取得
+     */
+    function getChunkCount(uint256 tokenId) public view returns (uint256) {
+        address owner = _ownerOf(tokenId);
+        require(owner != address(0), "Token does not exist");
+        return _tokenImageMetadata[tokenId].chunks.length;
+    }
+
+    /**
+     * @dev 特定トークンの総データサイズを取得
+     */
+    function getTotalDataSize(uint256 tokenId) public view returns (uint256) {
+        address owner = _ownerOf(tokenId);
+        require(owner != address(0), "Token does not exist");
+        return _tokenImageMetadata[tokenId].totalLength;
     }
 
     /**

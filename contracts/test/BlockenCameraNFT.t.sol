@@ -15,6 +15,33 @@ contract BlockenCameraNFTTest is Test {
         '<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500"><rect fill="#fff"/></svg>';
     string constant EMPTY_SVG = "";
 
+    // ヘルパー関数: SVG文字列を単一チャンクの配列に変換
+    function createSingleChunk(string memory svg) internal pure returns (bytes[] memory) {
+        bytes[] memory chunks = new bytes[](1);
+        chunks[0] = bytes(svg);
+        return chunks;
+    }
+
+    // ヘルパー関数: SVG文字列を複数チャンクに分割
+    function createMultipleChunks(string memory svg, uint256 chunkCount) internal pure returns (bytes[] memory) {
+        bytes memory data = bytes(svg);
+        bytes[] memory chunks = new bytes[](chunkCount);
+        uint256 chunkSize = data.length / chunkCount;
+
+        for (uint256 i = 0; i < chunkCount; i++) {
+            uint256 start = i * chunkSize;
+            uint256 end = (i == chunkCount - 1) ? data.length : (i + 1) * chunkSize;
+            uint256 length = end - start;
+
+            chunks[i] = new bytes(length);
+            for (uint256 j = 0; j < length; j++) {
+                chunks[i][j] = data[start + j];
+            }
+        }
+
+        return chunks;
+    }
+
     function setUp() public {
         owner = address(this);
         user1 = address(0x1);
@@ -42,38 +69,56 @@ contract BlockenCameraNFTTest is Test {
 
     function testMintWithValidSvg() public {
         vm.prank(user1);
-        uint256 tokenId = nft.mint(VALID_SVG);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
+        uint256 tokenId = nft.mint(chunks);
 
         assertEq(tokenId, 0);
         assertEq(nft.ownerOf(0), user1);
         assertEq(nft.getCurrentTokenId(), 1);
         assertTrue(nft.tokenTimestamps(0) > 0);
-        assertEq(nft.getSvgData(0), VALID_SVG);
+        assertEq(nft.getSvgData(0), bytes(VALID_SVG));
+        assertEq(nft.getChunkCount(0), 1);
+        assertEq(nft.getTotalDataSize(0), bytes(VALID_SVG).length);
     }
 
     function testMintWithEmptySvg() public {
         vm.prank(user1);
-        vm.expectRevert("SVG data cannot be empty");
-        nft.mint(EMPTY_SVG);
+        bytes[] memory emptyChunks = new bytes[](0);
+        vm.expectRevert("No SVG data provided");
+        nft.mint(emptyChunks);
     }
 
-    function testMintWithLargeSvg() public {
-        // 100KB以上のSVGを生成
-        string memory largeSvg = new string(100001);
+    function testMintWithEmptyChunk() public {
         vm.prank(user1);
-        vm.expectRevert("SVG data too large (max 100KB)");
-        nft.mint(largeSvg);
+        bytes[] memory chunks = new bytes[](1);
+        chunks[0] = bytes("");
+        vm.expectRevert("Empty chunk not allowed");
+        nft.mint(chunks);
+    }
+
+    function testMintWithMultipleChunks() public {
+        vm.prank(user1);
+        bytes[] memory chunks = createMultipleChunks(VALID_SVG, 3);
+        uint256 tokenId = nft.mint(chunks);
+
+        assertEq(tokenId, 0);
+        assertEq(nft.ownerOf(0), user1);
+        assertEq(nft.getChunkCount(0), 3);
+        assertEq(nft.getTotalDataSize(0), bytes(VALID_SVG).length);
+        assertEq(nft.getSvgData(0), bytes(VALID_SVG));
     }
 
     function testMultipleMints() public {
-        vm.prank(user1);
-        nft.mint(VALID_SVG);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
 
         vm.prank(user1);
-        nft.mint(VALID_SVG);
+        nft.mint(chunks);
+
+        vm.prank(user1);
+        nft.mint(chunks);
 
         vm.prank(user2);
-        nft.mint(VALID_SVG);
+        nft.mint(chunks);
 
         assertEq(nft.ownerOf(0), user1);
         assertEq(nft.ownerOf(1), user1);
@@ -88,8 +133,9 @@ contract BlockenCameraNFTTest is Test {
         nft.setPlatformFee(0.001 ether);
 
         vm.prank(user1);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
         vm.expectRevert("Insufficient platform fee");
-        nft.mint{value: 0.0005 ether}(VALID_SVG);
+        nft.mint{value: 0.0005 ether}(chunks);
     }
 
     function testMintWithExactFee() public {
@@ -97,7 +143,8 @@ contract BlockenCameraNFTTest is Test {
         nft.setPlatformFee(0.001 ether);
 
         vm.prank(user1);
-        uint256 tokenId = nft.mint{value: 0.001 ether}(VALID_SVG);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
+        uint256 tokenId = nft.mint{value: 0.001 ether}(chunks);
 
         assertEq(tokenId, 0);
         assertEq(address(nft).balance, 0.001 ether);
@@ -108,7 +155,8 @@ contract BlockenCameraNFTTest is Test {
         nft.setPlatformFee(0.001 ether);
 
         vm.prank(user1);
-        uint256 tokenId = nft.mint{value: 0.002 ether}(VALID_SVG);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
+        uint256 tokenId = nft.mint{value: 0.002 ether}(chunks);
 
         assertEq(tokenId, 0);
         assertEq(address(nft).balance, 0.002 ether);
@@ -138,7 +186,8 @@ contract BlockenCameraNFTTest is Test {
         nft.setPlatformFee(0.001 ether);
 
         vm.prank(user1);
-        nft.mint{value: 0.001 ether}(VALID_SVG);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
+        nft.mint{value: 0.001 ether}(chunks);
 
         uint256 ownerBalanceBefore = owner.balance;
         uint256 contractBalance = address(nft).balance;
@@ -167,7 +216,8 @@ contract BlockenCameraNFTTest is Test {
 
     function testTokenURI() public {
         vm.prank(user1);
-        nft.mint(VALID_SVG);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
+        nft.mint(chunks);
 
         string memory uri = nft.tokenURI(0);
         assertTrue(bytes(uri).length > 0);
@@ -193,10 +243,11 @@ contract BlockenCameraNFTTest is Test {
 
     function testGetSvgData() public {
         vm.prank(user1);
-        nft.mint(VALID_SVG);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
+        nft.mint(chunks);
 
-        string memory retrievedSvg = nft.getSvgData(0);
-        assertEq(retrievedSvg, VALID_SVG);
+        bytes memory retrievedSvg = nft.getSvgData(0);
+        assertEq(retrievedSvg, bytes(VALID_SVG));
     }
 
     function testGetSvgDataNonExistentToken() public {
@@ -208,9 +259,10 @@ contract BlockenCameraNFTTest is Test {
 
     function testNFTMintedEvent() public {
         vm.prank(user1);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
         vm.expectEmit(true, true, false, true);
         emit BlockenCameraNFT.NFTMinted(user1, 0, block.timestamp, 0);
-        nft.mint(VALID_SVG);
+        nft.mint(chunks);
     }
 
     function testPlatformFeeUpdatedEvent() public {
@@ -227,7 +279,8 @@ contract BlockenCameraNFTTest is Test {
         nft.setPlatformFee(0.001 ether);
 
         vm.prank(user1);
-        nft.mint{value: 0.001 ether}(VALID_SVG);
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
+        nft.mint{value: 0.001 ether}(chunks);
 
         uint256 balance = address(nft).balance;
 
@@ -242,15 +295,17 @@ contract BlockenCameraNFTTest is Test {
         // 手数料を設定
         nft.setPlatformFee(0.001 ether);
 
+        bytes[] memory chunks = createSingleChunk(VALID_SVG);
+
         // ユーザー1が2つミント
         vm.startPrank(user1);
-        uint256 tokenId1 = nft.mint{value: 0.001 ether}(VALID_SVG);
-        uint256 tokenId2 = nft.mint{value: 0.001 ether}(VALID_SVG);
+        uint256 tokenId1 = nft.mint{value: 0.001 ether}(chunks);
+        uint256 tokenId2 = nft.mint{value: 0.001 ether}(chunks);
         vm.stopPrank();
 
         // ユーザー2が1つミント
         vm.prank(user2);
-        uint256 tokenId3 = nft.mint{value: 0.001 ether}(VALID_SVG);
+        uint256 tokenId3 = nft.mint{value: 0.001 ether}(chunks);
 
         // 所有権の確認
         assertEq(nft.ownerOf(tokenId1), user1);
