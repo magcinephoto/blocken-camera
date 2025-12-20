@@ -233,6 +233,27 @@
   width: 100%;
 }
 
+/* TxHash表示 */
+.txHashDisplay {
+  margin-top: 12px;
+  margin-bottom: 8px;
+  padding: 8px 16px;
+  background: rgba(17, 0, 250, 0.1);
+  border: 1px solid rgba(17, 0, 250, 0.3);
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: rgba(17, 0, 250, 0.9);
+  word-break: break-all;
+  max-width: 400px;
+  text-align: center;
+}
+
+.txHashDisplay strong {
+  font-weight: 600;
+  color: #1100FA;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
   .container {
@@ -286,5 +307,12 @@
   .deleteButton svg {
     width: 20px;
     height: 20px;
+  }
+
+  .txHashDisplay {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    margin-top: 10px;
+    margin-bottom: 6px;
   }
 }

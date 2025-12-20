@@ -55,11 +55,15 @@ export function selectPaletteFromHash(txHash: string): PaletteSelection {
   // "0x"プレフィックスを除去
   const cleanHash = txHash.replace(/^0x/, '');
 
-  // 最初の1文字でパレットを選択 (0-f → 0-15 → 0-6にマッピング)
+  // TxHashの文字（0-9, a-f）を8番目のパレットとして作成
+  const txHashPalette = cleanHash.length > 0 ? cleanHash : '0123456789abcdef';
+  const extendedPalettes = [...ASCII_PALETTES, txHashPalette];
+
+  // 最初の1文字でパレットを選択 (0-f → 0-15 → 0-7にマッピング)
   const firstChar = cleanHash.charAt(0);
   const firstValue = parseInt(firstChar, 16); // 0-15
-  const paletteIndex = firstValue % ASCII_PALETTES.length; // 0-6
-  const selectedPalette = ASCII_PALETTES[paletteIndex];
+  const paletteIndex = firstValue % extendedPalettes.length; // 0-7
+  const selectedPalette = extendedPalettes[paletteIndex];
 
   // 2番目の文字でカラーモードを決定（偶数=rainbow、奇数=monochrome）
   const secondChar = cleanHash.charAt(1) || '0';

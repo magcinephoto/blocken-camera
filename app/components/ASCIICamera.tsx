@@ -14,6 +14,7 @@ export function ASCIICamera() {
   const currentASCIIRef = useRef<string>('');
   const currentCharIndicesRef = useRef<number[][]>([]);
   const [paletteSelection, setPaletteSelection] = useState<PaletteSelection | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [capturedDimensions, setCapturedDimensions] = useState<{ width: number; height: number } | null>(null);
   const p5InstanceRef = useRef<any>(null);
 
@@ -27,6 +28,7 @@ export function ASCIICamera() {
         if (data.success && data.txHash) {
           const selection = selectPaletteFromHash(data.txHash);
           setPaletteSelection(selection);
+          setTxHash(data.txHash);
           console.log(`[ASCIICamera] Selected palette from tx: ${data.txHash.substring(0, 10)}... (Color: ${selection.colorMode})`);
         } else {
           // フォールバック
@@ -405,6 +407,11 @@ export function ASCIICamera() {
             <div className={styles.asciiWrapper}>
               <P5Canvas sketch={sketch} />
             </div>
+            {txHash && (
+              <div className={styles.txHashDisplay}>
+                <strong>Latest Tx:</strong> {txHash}
+              </div>
+            )}
             <button
               className={styles.shutterButton}
               onClick={handleShutter}
