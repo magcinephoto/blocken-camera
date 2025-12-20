@@ -22,6 +22,17 @@
   text-align: center;
   margin: 2rem 0;
   color: #1100FA;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+.glitchTitle:hover {
+  opacity: 0.8;
+}
+
+.glitchTitle:active {
+  opacity: 0.6;
 }
 
 @media (max-width: 768px) {

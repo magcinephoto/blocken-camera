@@ -1,12 +1,16 @@
 "use client";
 import { P5Canvas, Sketch } from "@p5-wrapper/react";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import Image from "next/image";
 import styles from "./ASCIICamera.module.css";
 import { BlockenMintNFT } from "./BlockenMintNFT";
 import { selectPaletteFromHash, getDefaultPalette, PaletteSelection, RAINBOW_COLORS_HEX, RAINBOW_COLORS } from "../utils/asciiPalette";
 
-export function ASCIICamera() {
+export interface ASCIICameraRef {
+  reset: () => void;
+}
+
+export const ASCIICamera = forwardRef<ASCIICameraRef, object>(function ASCIICamera(_props, ref) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'camera' | 'preview'>('camera');
@@ -160,12 +164,20 @@ export function ASCIICamera() {
     }
   }, [isLoading, error, generateSVGDataUrl, paletteSelection]);
 
-  // 削除ボタンハンドラ
-  const handleDelete = useCallback(() => {
+  // リセットハンドラ
+  const handleReset = useCallback(() => {
     setSvgDataUrl(null);
     setCapturedDimensions(null);
     setMode('camera');
   }, []);
+
+  // 削除ボタンハンドラ（リセットハンドラーと同じ）
+  const handleDelete = handleReset;
+
+  // 外部からリセットを呼び出せるようにする
+  useImperativeHandle(ref, () => ({
+    reset: handleReset,
+  }), [handleReset]);
 
   const sketch: Sketch = useCallback((p5) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -466,4 +478,4 @@ export function ASCIICamera() {
       </div>
     </div>
   );
-}
+});
