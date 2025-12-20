@@ -148,3 +148,25 @@ export function getDefaultPalette(): PaletteSelection {
     getColor: () => ({ r: 255, g: 255, b: 255 }) // 常に白色
   };
 }
+
+/**
+ * RGB色を16進数カラーコードに変換
+ *
+ * @param r - 赤成分 (0-255)
+ * @param g - 緑成分 (0-255)
+ * @param b - 青成分 (0-255)
+ * @returns 16進数カラーコード (例: "#FF7F00")
+ */
+export function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (n: number) => {
+    const hex = n.toString(16).toUpperCase();
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/**
+ * RAINBOW_COLORSを16進数形式で取得
+ * SVGサイズを削減するため、事前に計算された16進数カラーコードを返す
+ */
+export const RAINBOW_COLORS_HEX = RAINBOW_COLORS.map(c => rgbToHex(c.r, c.g, c.b));

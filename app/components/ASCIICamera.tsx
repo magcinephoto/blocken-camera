@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
 import styles from "./ASCIICamera.module.css";
 import { BlockenMintNFT } from "./BlockenMintNFT";
-import { selectPaletteFromHash, getDefaultPalette, PaletteSelection } from "../utils/asciiPalette";
+import { selectPaletteFromHash, getDefaultPalette, PaletteSelection, RAINBOW_COLORS_HEX, RAINBOW_COLORS } from "../utils/asciiPalette";
 
 export function ASCIICamera() {
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +16,7 @@ export function ASCIICamera() {
   const [paletteSelection, setPaletteSelection] = useState<PaletteSelection | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [capturedDimensions, setCapturedDimensions] = useState<{ width: number; height: number } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const p5InstanceRef = useRef<any>(null);
 
   // トランザクションハッシュを取得してパレットを選択
@@ -51,7 +52,7 @@ export function ASCIICamera() {
     return atob(base64Data);
   }, []);
 
-  // SVG生成関数
+  // SVG生成関数（最適化版）
   const generateSVGDataUrl = useCallback((
     asciiText: string,
     charIndices: number[][],
@@ -59,11 +60,11 @@ export function ASCIICamera() {
   ): string => {
     const lines = asciiText.split('\n').filter(line => line.length > 0);
 
-    // 動的サイズ計算の定数
+    // 動的サイズ計算の定数（最適化）
     const fontSize = 8;
     const lineHeight = 4.8;
-    const padding = 20;
-    const charWidth = 4.8; // Courier Newの文字幅（フォントサイズと同じ比率）
+    const padding = 16; // 20 → 16 に削減
+    const charWidth = 4.8;
 
     // SVGサイズを動的に計算
     const maxLineLength = Math.max(...lines.map(line => line.length));
@@ -73,26 +74,41 @@ export function ASCIICamera() {
     let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">`;
     svgContent += `<rect width="100%" height="100%" fill="#1100FA"/>`;
 
+    // CSSスタイルクラスを定義（レインボーモードのみ）
+    if (paletteSelection.colorMode === 'rainbow') {
+      svgContent += `<style>`;
+      svgContent += `.t{font-family:'Inconsolata','Courier New',monospace;font-size:${fontSize}px;dominant-baseline:hanging}`;
+
+      // 7色のカラークラスを定義
+      RAINBOW_COLORS_HEX.forEach((hex, i) => {
+        svgContent += `.c${i}{fill:${hex}}`;
+      });
+
+      svgContent += `</style>`;
+    }
+
     lines.forEach((line, lineIndex) => {
       const y = padding + (lineIndex * lineHeight);
 
       if (paletteSelection.colorMode === 'monochrome') {
-        // モノクロモード: 既存の方法（行全体を白色で表示）
+        // モノクロモード: シンプルな1行テキスト
         const escapedLine = line
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&apos;');
-        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" font-weight="400" fill="#FFFFFF" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
+
+        // 最適化: font-weight削除、短縮されたfont-family、fill色を短縮
+        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata','Courier New',monospace" font-size="${fontSize}px" fill="#FFF" dominant-baseline="hanging">${escapedLine}</text>`;
       } else {
-        // レインボーモード: <tspan>で各文字を個別に色付け
-        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" font-weight="400" letter-spacing="0" dominant-baseline="hanging">`;
+        // レインボーモード: クラスベースの色付け
+        svgContent += `<text x="${padding}" y="${y}" class="t">`;
 
         for (let charPos = 0; charPos < line.length; charPos++) {
           const char = line[charPos];
           const charIndex = charIndices[lineIndex]?.[charPos] ?? 0;
-          const color = paletteSelection.getColor(charIndex);
+          const colorClass = charIndex % RAINBOW_COLORS.length;
 
           // 文字をエスケープ
           let escapedChar = char;
@@ -102,7 +118,8 @@ export function ASCIICamera() {
           else if (char === '"') escapedChar = '&quot;';
           else if (char === "'") escapedChar = '&apos;';
 
-          svgContent += `<tspan fill="rgb(${color.r},${color.g},${color.b})">${escapedChar}</tspan>`;
+          // クラスベースで色を指定（大幅に短縮）
+          svgContent += `<tspan class="c${colorClass}">${escapedChar}</tspan>`;
         }
 
         svgContent += `</text>`;
@@ -160,12 +177,12 @@ export function ASCIICamera() {
 
     // sampleAscii.jsから採用
     // const letters = " .,;xe$"; // トランザクションハッシュから動的に選択
-    const videoWidth = 50;
-    const videoHeight = 50; // 1:1の縦横比
+    const videoWidth = 45;
+    const videoHeight = 45; // 1:1の縦横比
     const charW = 8;  // 文字幅
     const charH = 8;  // 文字高さ（正方形にするためcharWと同じ）
-    const canvasWidth = videoWidth * charW;   // 400px
-    const canvasHeight = videoHeight * charH;  // 400px（正方形）
+    const canvasWidth = videoWidth * charW;   // 360px
+    const canvasHeight = videoHeight * charH;  // 360px（正方形）
 
     p5.setup = async () => {
       // スマホ対応：画面幅に応じてキャンバスサイズを調整
