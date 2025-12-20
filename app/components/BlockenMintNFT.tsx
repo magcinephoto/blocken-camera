@@ -14,9 +14,10 @@ import styles from "./BlockenMintNFT.module.css";
 
 interface BlockenMintNFTProps {
   svgData: string;
+  pngDataUrl: string;
 }
 
-export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
+export function BlockenMintNFT({ svgData, pngDataUrl }: BlockenMintNFTProps) {
   const { isConnected } = useAccount();
   const chainId = useChainId();
   const [mintedTokenId, setMintedTokenId] = useState<bigint | null>(null);
@@ -167,8 +168,10 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
       <button
         onClick={async () => {
           try {
-            const blob = new Blob([svgData], { type: "image/svg+xml" });
-            const fileName = `blocken_camera_${Date.now()}.svg`;
+            // dataURLからblobを作成
+            const response = await fetch(pngDataUrl);
+            const blob = await response.blob();
+            const fileName = `blocken_camera_${Date.now()}.png`;
 
             // Web Share API が利用可能な場合（主にモバイル）
             if (
@@ -177,7 +180,7 @@ export function BlockenMintNFT({ svgData }: BlockenMintNFTProps) {
             ) {
               try {
                 const file = new File([blob], fileName, {
-                  type: "image/svg+xml",
+                  type: "image/png",
                 });
                 const shareData = {
                   files: [file],

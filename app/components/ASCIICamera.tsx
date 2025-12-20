@@ -15,6 +15,7 @@ export const ASCIICamera = forwardRef<ASCIICameraRef, object>(function ASCIICame
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'camera' | 'preview'>('camera');
   const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
+  const [pngDataUrl, setPngDataUrl] = useState<string | null>(null);
   const currentASCIIRef = useRef<string>('');
   const currentCharIndicesRef = useRef<number[][]>([]);
   const [paletteSelection, setPaletteSelection] = useState<PaletteSelection | null>(null);
@@ -143,6 +144,7 @@ export const ASCIICamera = forwardRef<ASCIICameraRef, object>(function ASCIICame
     }
 
     try {
+      // SVG生成（NFTミント用）
       const svgUrl = generateSVGDataUrl(
         currentASCIIRef.current,
         currentCharIndicesRef.current,
@@ -150,8 +152,13 @@ export const ASCIICamera = forwardRef<ASCIICameraRef, object>(function ASCIICame
       );
       setSvgDataUrl(svgUrl);
 
-      // P5インスタンスから現在のサイズを取得して保存
-      if (p5InstanceRef.current) {
+      // P5キャンバスからPNG画像を取得（保存用）
+      if (p5InstanceRef.current && p5InstanceRef.current.canvas) {
+        const canvas = p5InstanceRef.current.canvas;
+        const pngUrl = canvas.toDataURL('image/png');
+        setPngDataUrl(pngUrl);
+
+        // 現在のサイズを保存
         setCapturedDimensions({
           width: Math.round(p5InstanceRef.current.width),
           height: Math.round(p5InstanceRef.current.height)
@@ -167,6 +174,7 @@ export const ASCIICamera = forwardRef<ASCIICameraRef, object>(function ASCIICame
   // リセットハンドラ
   const handleReset = useCallback(() => {
     setSvgDataUrl(null);
+    setPngDataUrl(null);
     setCapturedDimensions(null);
     setMode('camera');
   }, []);
@@ -450,17 +458,17 @@ export const ASCIICamera = forwardRef<ASCIICameraRef, object>(function ASCIICame
           </>
         ) : (
           <>
-            {svgDataUrl && (
+            {pngDataUrl && svgDataUrl && (
               <>
                 <Image
-                  src={svgDataUrl}
+                  src={pngDataUrl}
                   alt="Captured ASCII Art"
                   className={styles.previewImage}
                   width={capturedDimensions?.width ?? 400}
                   height={capturedDimensions?.height ?? 400}
                 />
                 <div className={styles.mintButtonWrapper}>
-                  <BlockenMintNFT svgData={extractSvgString(svgDataUrl)} />
+                  <BlockenMintNFT svgData={extractSvgString(svgDataUrl)} pngDataUrl={pngDataUrl} />
                 </div>
               </>
             )}
