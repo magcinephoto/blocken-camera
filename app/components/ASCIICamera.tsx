@@ -84,10 +84,10 @@ export function ASCIICamera() {
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&apos;');
-        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" fill="#FFFFFF" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
+        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" font-weight="400" fill="#FFFFFF" letter-spacing="0" dominant-baseline="hanging">${escapedLine}</text>`;
       } else {
         // レインボーモード: <tspan>で各文字を個別に色付け
-        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" letter-spacing="0" dominant-baseline="hanging">`;
+        svgContent += `<text x="${padding}" y="${y}" font-family="'Inconsolata', 'Courier New', monospace" font-size="${fontSize}px" font-weight="400" letter-spacing="0" dominant-baseline="hanging">`;
 
         for (let charPos = 0; charPos < line.length; charPos++) {
           const char = line[charPos];
