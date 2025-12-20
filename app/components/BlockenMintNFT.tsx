@@ -80,17 +80,38 @@ export function BlockenMintNFT({ svgData, pngDataUrl }: BlockenMintNFTProps) {
     }
   }, [isConfirmed, currentTokenId]);
 
+  // SVGデータをチャンク配列に分割
+  const splitIntoChunks = (data: string, chunkSize: number = 24000): `0x${string}`[] => {
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(data);
+
+    const chunks: `0x${string}`[] = [];
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.slice(i, i + chunkSize);
+      // バイト配列を16進数文字列に変換
+      const hexString = '0x' + Array.from(chunk)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('') as `0x${string}`;
+      chunks.push(hexString);
+    }
+
+    return chunks;
+  };
+
   const handleMint = async () => {
     if (!svgData || !contractAddress) {
       return;
     }
 
     try {
+      // SVGデータをチャンク配列に変換
+      const chunks = splitIntoChunks(svgData);
+
       writeContract({
         address: contractAddress,
         abi: blockenCameraNFTABI,
         functionName: "mint",
-        args: [svgData],
+        args: [chunks],
         value: platformFee ?? BigInt(0),
         chain: targetChain,
       });
